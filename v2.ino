@@ -621,10 +621,10 @@ void telaVisualizarSenha(int key){
 void telaJogando(){
   if (!atualizouTela) {
     //DEBUG
-    Serial.println("Modo Jogo - " + String(modoJogoAtual);
-    Serial.println("Modo Armar - " + String(modoJogoAtual);
+    Serial.println("Modo Jogo - " + String(modoJogoAtual));
+    Serial.println("Modo Armar - " + String(modoJogoAtual));
     if(modoJogoAtual == SABOTAGEM){
-      Serial.println("Senha - " + senha;
+      Serial.println("Senha - " + senha);
       Serial.println("Tempo Exp. - " + tempoExplosao);
     } else {
       Serial.println("Pts. Max. - " + String(maxPts));
