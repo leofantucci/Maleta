@@ -77,6 +77,8 @@ ScrollLCD tempoDominacao = {0, 0, " Defina o tempo limite da partida (seg.)"};
 ScrollLCD finalAtacantes = {0, 0, "    ATACANTES VENCERAM!"};
 ScrollLCD finalDefensores = {0, 0, "    DEFENSORES VENCERAM!"};
 ScrollLCD menuConfirmarPontos = {0, 0, " Deseja personalizar o max. de pontos? (PADRAO = (Tempo Lim./2)"};
+ScrollLCD menuConfirmar = {0,0, ""};
+
 
 // ================= LCD I2C =================
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -174,6 +176,10 @@ int freq = 1000; // Tempo em ms para somar 1 ponto (1000ms = 1s)
 int maxPts = 300; // Pontuação máxima para vitória
 String maxPts_inserido = "";
 
+
+// Buffer global que vai segurar o texto na memória (tamanho 100 é um bom limite)
+String textoConfirmacaoGlobal = "";
+
 /* ========================= */
 /* FUNÇÕES                   */
 /* ========================= */
@@ -200,13 +206,38 @@ String nomeDuracaoAtual(){
     case CQB:
       return "CQB";
     case PADRAO:
-      return "PADRAO";
+      return "Padrao";
     case CAMPO_ABERTO:
-      return "CAMPO ABERTO";
+      return "Campo Aberto";
     case PERSONALIZADA:
-      return "PERSONALIZADA";
+      return "Personalizada";
   }
 }
+
+void atualizarTextoConfirmacao() {
+  // 1. Montamos a String passo a passo (usar += é mais leve para o Arduino)
+  textoConfirmacaoGlobal = " Jogo: " + nomeModoJogoAtual();
+  textoConfirmacaoGlobal += " - Armar: " + nomeModoArmarAtual();
+  textoConfirmacaoGlobal += " - Dur.: " + nomeDuracaoAtual();
+  
+  if (modoJogoAtual == SABOTAGEM) {
+    textoConfirmacaoGlobal += " - Tempo: " + tempoExplosao + "seg.";
+    if (modoArmarAtual == SENHA) {
+      textoConfirmacaoGlobal += " - Senha: " + senha;
+    }
+  } 
+  else if (modoJogoAtual == DOMINACAO) {
+    textoConfirmacaoGlobal += " - Tempo: " + tempoLimite + "seg.";
+    textoConfirmacaoGlobal += " - Pontos: " + String(maxPts);
+  }
+  
+  textoConfirmacaoGlobal += "   "; // Espaçamento extra no final para o letreiro não grudar
+
+  // 2. Usamos .c_str() para passar o ponteiro seguro da String global para a struct
+  menuConfirmar.texto = textoConfirmacaoGlobal.c_str();
+  menuConfirmar.posicao = 0; // Reseta o scroll
+}
+
 void (*reiniciarSoftware)(void) = 0;
 
 void scrollTexto(ScrollLCD &scroll, int linha, unsigned long intervalo) {
@@ -467,21 +498,18 @@ void telaDuracao(){
         break;
       case '1':
         mudarDuracao(CQB);
-        if(modoJogoAtual == SABOTAGEM) tempoExplosao = "50";
-        if(modoJogoAtual == DOMINACAO) { tempoLimite = "600"; maxPts = 300; }
-        mudarTela(VISUALIZAR_PONTOS);
+        if(modoJogoAtual == SABOTAGEM) {tempoExplosao = "50"; mudarTela(CONFIRMAR);}
+        if(modoJogoAtual == DOMINACAO) { tempoLimite = "600"; maxPts = 300; mudarTela(VISUALIZAR_PONTOS);}
         break;
       case '2':
         mudarDuracao(PADRAO);
-        if(modoJogoAtual == SABOTAGEM) tempoExplosao = "90";
-        if(modoJogoAtual == DOMINACAO) { tempoLimite = "1800"; maxPts = 900; }
-        mudarTela(VISUALIZAR_PONTOS);
+        if(modoJogoAtual == SABOTAGEM) {tempoExplosao = "90"; mudarTela(CONFIRMAR);}
+        if(modoJogoAtual == DOMINACAO) { tempoLimite = "1800"; maxPts = 900; mudarTela(VISUALIZAR_PONTOS);}
         break;
       case '3':
         mudarDuracao(CAMPO_ABERTO);
-        if(modoJogoAtual == SABOTAGEM) tempoExplosao = "260";
-        if(modoJogoAtual == DOMINACAO) { tempoLimite = "3600"; maxPts = 1800; }
-        mudarTela(VISUALIZAR_PONTOS);
+        if(modoJogoAtual == SABOTAGEM) {tempoExplosao = "260"; mudarTela(CONFIRMAR);}
+        if(modoJogoAtual == DOMINACAO) { tempoLimite = "3600"; maxPts = 1800; mudarTela(VISUALIZAR_PONTOS);}
         break;
       case '4':
         mudarDuracao(PERSONALIZADA);
@@ -700,21 +728,23 @@ void telaVisualizarTempoLimite(){
   mudarTela(MENU_CONFIRMAR_PONTOS);
 }
 
-void telaConfirmar(){
-  if(!atualizouTela){
-    Serial.println(nomeModoJogoAtual());
-    Serial.println(nomeModoArmarAtual());
-    Serial.println(nomeDuracaoAtual());
-    if(modoJogoAtual == SABOTAGEM){
-      Serial.println("Tempo Exp.: " + tempoExplosao);
-      Serial.println("Senha: " + senha);
-    } else {
-      Serial.println("Tempo Lim.: " + tempoLimite);
-      Serial.println("Max Pts.: " + String(maxPts));
-    }
+void telaConfirmar() {
+  if (!atualizouTela) {
+    lcd.clear();
+    atualizarTextoConfirmacao(); 
+    
+    // ADICIONE ISTO PARA MOSTRAR OS BOTÕES NA LINHA DE BAIXO
+    lcd.setCursor(0, 1);
+    lcd.print("1-Iniciar B-Sair");
+    
     atualizouTela = true;
   }
-
+  
+  scrollTexto(menuConfirmar, 0, 300); 
+  
+  char tecla = teclado.getKey();
+  if(tecla == '1') mudarTela(JOGANDO);
+  if(tecla == 'B') mudarTela(INICIO);
 }
 
 void setup() {
