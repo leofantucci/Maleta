@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "author": "Leonardo",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-breadboard-half", "id": "bb1", "top": -454.2, "left": -198.8, "attrs": {} },
+    { "type": "wokwi-arduino-nano", "id": "nano", "top": -139.2, "left": -355.7, "attrs": {} },
+    {
+      "type": "wokwi-lcd1602",
+      "id": "lcd1",
+      "top": -588.8,
+      "left": 332,
+      "attrs": { "pins": "i2c" }
+    },
+    { "type": "board-mfrc522", "id": "rfid1", "top": -223.45, "left": 99.44, "attrs": {} },
+    {
+      "type": "wokwi-membrane-keypad",
+      "id": "keypad1",
+      "top": -376.4,
+      "left": 351.2,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": -358.6,
+      "left": 192,
+      "attrs": { "color": "green", "xray": "1" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn2",
+      "top": -291.4,
+      "left": 192,
+      "attrs": { "color": "red", "xray": "1" }
+    }
+  ],
+  "connections": [
+    [ "nano:5V", "bb1:bp.1", "red", [ "v0" ] ],
+    [ "nano:GND.1", "bb1:bn.2", "black", [ "v0" ] ],
+    [ "nano:A4", "lcd1:SDA", "blue", [ "v0" ] ],
+    [ "lcd1:SCL", "nano:A5", "violet", [ "h-595.2", "v451.5" ] ],
+    [ "lcd1:VCC", "bb1:bp.5", "red", [ "h-460.8", "v279.4" ] ],
+    [ "lcd1:GND", "bb1:bn.4", "black", [ "h-470.4", "v298.9" ] ],
+    [ "rfid1:SDA", "nano:10", "green", [ "h-700.8", "v-201.6" ] ],
+    [ "rfid1:SCK", "nano:13", "#8f4814", [ "h-124.8", "h-595.2" ] ],
+    [ "rfid1:MOSI", "nano:11", "orange", [ "h-115.2", "h-595.2" ] ],
+    [ "rfid1:MISO", "nano:12", "blue", [ "h-748.8", "v-230.4" ] ],
+    [ "rfid1:RST", "nano:9", "gold", [ "h0" ] ],
+    [ "nano:3.3V", "rfid1:3.3V", "red", [ "v38.4", "v172.8" ] ],
+    [ "rfid1:GND", "bb1:bn.6", "black", [ "h-489.6", "v-373.1" ] ],
+    [ "btn1:2.l", "bb1:bn.8", "black", [ "h0" ] ],
+    [ "btn2:1.l", "bb1:bn.9", "black", [ "h0" ] ],
+    [ "keypad1:R1", "nano:2", "green", [ "v38.4", "h-691.2" ] ],
+    [ "keypad1:R2", "nano:3", "green", [ "v9.6", "h-586", "v-86.4", "h-124.8" ] ],
+    [ "keypad1:R3", "nano:4", "green", [ "v19.2", "h-605.1", "v-86.4", "h-124.8" ] ],
+    [ "keypad1:R4", "nano:5", "green", [ "v28.8", "h-624.2", "v-124.8", "h-124.8" ] ],
+    [ "keypad1:C1", "nano:6", "green", [ "v48", "h-643.3", "v-153.6", "h-124.8" ] ],
+    [ "nano:7", "keypad1:C2", "green", [ "v-57.6", "h172.8", "v172.8", "h614.4" ] ],
+    [
+      "keypad1:C3",
+      "nano:8",
+      "green",
+      [ "v67.2", "h-633.75", "v-9.6", "h-38.4", "v-182.4", "h-134.4" ]
+    ],
+    [ "nano:A0", "keypad1:C4", "green", [ "v48", "h124.8", "v28.8", "h374.4", "v0", "h326.4" ] ],
+    [ "btn2:2.l", "nano:A2", "green", [ "h0" ] ],
+    [ "btn1:1.l", "nano:A1", "green", [ "h-48", "v115.2", "h-48" ] ]
+  ],
+  "dependencies": {}
+}
