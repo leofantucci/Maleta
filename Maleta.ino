@@ -21,15 +21,18 @@ enum Tela {
   VISUALIZAR_TEMPO_LIMITE,
   VISUALIZAR_SENHA,
   VISUALIZAR_PONTOS,
-  DOMINANDO_1,
-  DOMINANDO_2,
-  DOMINADA,
   CONFIRMAR,
-  JOGANDO,
+  JOGANDO_SABOTAGEM,
   ARMANDO,
   ARMADA,
   DESARMANDO,
-  FINAL,
+  JOGANDO_DOMINACAO,
+  DOMINANDO_1,
+  DOMINANDO_2,
+  DOMINADA,
+  FINAL_ATAQUE,
+  FINAL_DEFESA,
+  FINAL_DOMINACAO,
 };
 
 enum Jogo {
@@ -210,28 +213,37 @@ String nomeDuracaoAtual(){
     case CAMPO_ABERTO:
       return "Campo Aberto";
     case PERSONALIZADA:
-      return "Personalizada";
+      return "Person.";
   }
 }
 
 void atualizarTextoConfirmacao() {
   // 1. Montamos a String passo a passo (usar += é mais leve para o Arduino)
-  textoConfirmacaoGlobal = " Jogo: " + nomeModoJogoAtual();
-  textoConfirmacaoGlobal += " - Armar: " + nomeModoArmarAtual();
-  textoConfirmacaoGlobal += " - Dur.: " + nomeDuracaoAtual();
+  textoConfirmacaoGlobal = F(" Jogo: "); 
+  textoConfirmacaoGlobal += nomeModoJogoAtual();
+  textoConfirmacaoGlobal += F(" - Armar: ");
+  textoConfirmacaoGlobal += nomeModoArmarAtual();
+  textoConfirmacaoGlobal += F(" - Dur.: "); 
+  textoConfirmacaoGlobal += nomeDuracaoAtual();
   
   if (modoJogoAtual == SABOTAGEM) {
-    textoConfirmacaoGlobal += " - Tempo: " + tempoExplosao + "seg.";
+    textoConfirmacaoGlobal += F(" - Tempo: ");
+    textoConfirmacaoGlobal += tempoExplosao;
+    textoConfirmacaoGlobal += F("seg.");
     if (modoArmarAtual == SENHA) {
-      textoConfirmacaoGlobal += " - Senha: " + senha;
+      textoConfirmacaoGlobal += F(" - Senha: ");
+      textoConfirmacaoGlobal += senha;
     }
   } 
   else if (modoJogoAtual == DOMINACAO) {
-    textoConfirmacaoGlobal += " - Tempo: " + tempoLimite + "seg.";
-    textoConfirmacaoGlobal += " - Pontos: " + String(maxPts);
+    textoConfirmacaoGlobal += F(" - Tempo: "); 
+    textoConfirmacaoGlobal += tempoLimite;
+    textoConfirmacaoGlobal += F("seg.");
+    textoConfirmacaoGlobal += F(" - Pontos: ");
+    textoConfirmacaoGlobal += maxPts;
   }
   
-  textoConfirmacaoGlobal += "   "; // Espaçamento extra no final para o letreiro não grudar
+  textoConfirmacaoGlobal += F("   "); // Espaçamento extra no final para o letreiro não grudar
 
   // 2. Usamos .c_str() para passar o ponteiro seguro da String global para a struct
   menuConfirmar.texto = textoConfirmacaoGlobal.c_str();
@@ -297,6 +309,14 @@ void telaErro(Tela antiga){
   lcd.clear();
   lcd.setCursor(6,0);
   lcd.print(F("ERRO"));
+  delay(1000);
+  mudarTela(antiga);
+}
+
+void telaSenhaErrada(Tela antiga){
+  lcd.clear();
+  lcd.setCursor(2,0);
+  lcd.print(F("SENHA ERRADA"));
   delay(1000);
   mudarTela(antiga);
 }
@@ -376,6 +396,31 @@ void barraCarregamento(int tempo) {
   }
 }
 
+bool apertouBotao(int botao) {
+  if (digitalRead(botao) == LOW) {
+    while (digitalRead(botao) == LOW) {
+      delay(10); 
+    }
+    return true; 
+  }
+  return false;
+}
+
+int verificarCartao(byte *uidLido, byte tamanho) {
+  for (int i = 0; i < NUM_CARTOES; i++) {
+    bool igual = true;
+    for (int j = 0; j < tamanho; j++) {
+      if (uidLido[j] != cartoes[i].uid[j]) {
+        igual = false;
+        break;
+      }
+    }
+    if (igual) {
+      return i;
+    }
+  }
+  return -1;
+}
 /* ========================= */
 /* TELAS                     */
 /* ========================= */
@@ -410,13 +455,16 @@ void telaModoJogo() {
 
   char tecla = teclado.getKey();
   if(tecla == 'B'){
+    delay(33);
     mudarTela(ultimaTela);
   }
   if (tecla == '1') {
+    delay(33);
     mudarModoJogo(SABOTAGEM);
     mudarTela(MODO_ARMAR);
   }
   if (tecla == '2') {
+    delay(33);
     mudarModoJogo(DOMINACAO);
     mudarTela(MODO_ARMAR);
   }
@@ -433,6 +481,7 @@ void telaModoArmar() {
   
   char tecla = teclado.getKey();
   if(tecla == 'B'){
+    delay(33);
     mudarTela(ultimaTela);
   }
 
@@ -441,14 +490,17 @@ void telaModoArmar() {
       scrollTexto(menuSabotagem, 1, 300);
 
       if (tecla == '1') {
+        delay(33);
         mudarModoArmar(BOTAO);
         mudarTela(DURACAO);
       }
       if (tecla == '2') {
+        delay(33);
         mudarModoArmar(CARTAO);
         mudarTela(DURACAO);
       }
       if (tecla == '3') {
+        delay(33);
         mudarModoArmar(SENHA);      
         mudarTela(MENU_SENHA);
       }
@@ -458,10 +510,12 @@ void telaModoArmar() {
       scrollTexto(menuDominacao, 1, 300);
     
       if (tecla == '1') {
+        delay(33);
         mudarModoArmar(BOTAO);
         mudarTela(DURACAO);
       }
       if (tecla == '2') {
+        delay(33);
         mudarModoArmar(CARTAO);
         mudarTela(DURACAO);
       }
@@ -499,17 +553,17 @@ void telaDuracao(){
       case '1':
         mudarDuracao(CQB);
         if(modoJogoAtual == SABOTAGEM) {tempoExplosao = "50"; mudarTela(CONFIRMAR);}
-        if(modoJogoAtual == DOMINACAO) { tempoLimite = "600"; maxPts = 300; mudarTela(VISUALIZAR_PONTOS);}
+        if(modoJogoAtual == DOMINACAO) { tempoLimite = "600"; maxPts = 300; mudarTela(MENU_CONFIRMAR_PONTOS);}
         break;
       case '2':
         mudarDuracao(PADRAO);
         if(modoJogoAtual == SABOTAGEM) {tempoExplosao = "90"; mudarTela(CONFIRMAR);}
-        if(modoJogoAtual == DOMINACAO) { tempoLimite = "1800"; maxPts = 900; mudarTela(VISUALIZAR_PONTOS);}
+        if(modoJogoAtual == DOMINACAO) { tempoLimite = "1800"; maxPts = 900; mudarTela(MENU_CONFIRMAR_PONTOS);}
         break;
       case '3':
         mudarDuracao(CAMPO_ABERTO);
         if(modoJogoAtual == SABOTAGEM) {tempoExplosao = "260"; mudarTela(CONFIRMAR);}
-        if(modoJogoAtual == DOMINACAO) { tempoLimite = "3600"; maxPts = 1800; mudarTela(VISUALIZAR_PONTOS);}
+        if(modoJogoAtual == DOMINACAO) { tempoLimite = "3600"; maxPts = 1800; mudarTela(MENU_CONFIRMAR_PONTOS);}
         break;
       case '4':
         mudarDuracao(PERSONALIZADA);
@@ -549,9 +603,11 @@ void telaMenuSenha() {
     lcd.print(F("                "));
   }
   if(tecla == '#'){
+    delay(33);
     salvarSenha();
   }
   if(tecla == 'B'){
+    delay(33);
     mudarTela(ultimaTela);
   }
 }
@@ -584,13 +640,16 @@ void telaMenuConfirmarPontos(){
   char tecla = teclado.getKey();
   
   if(tecla == '1'){
+    delay(33);
     mudarTela(MENU_PONTOS);
   }
   if(tecla == '2'){
+    delay(33);
     maxPts = (tempoLimite.toInt())/2;
     mudarTela(VISUALIZAR_PONTOS);
   }
   if(tecla == 'B'){
+    delay(33);
     mudarTela(ultimaTela);
   }
 }
@@ -620,9 +679,11 @@ void telaMenuPontos() {
     lcd.print(F("                "));
   }
   if(tecla == '#'){
+    delay(33);
     salvarPontos();
   }
   if(tecla == 'B'){
+    delay(33);
     mudarTela(ultimaTela);
   }
 }
@@ -659,14 +720,17 @@ void telaTempoExplosao() {
     lcd.print(tempoExplosao_inserido);
   }
   if(tecla == 'D'){
+    delay(33);
     tempoExplosao_inserido = "";
     lcd.setCursor(0,1);
     lcd.print(F("                "));
   }
   if(tecla == '#'){
+    delay(33);
     salvarTempoExplosao();
   }
   if(tecla == 'B'){
+    delay(33);
     mudarTela(ultimaTela);
   }
 }
@@ -704,14 +768,17 @@ void telaTempoLimite() {
     lcd.print(tempoLimite_inserido);
   }
   if(tecla == 'D'){
+    delay(33);
     tempoLimite_inserido = "";
     lcd.setCursor(0,1);
     lcd.print(F("                "));
   }
   if(tecla == '#'){
+    delay(33);
     salvarTempoLimite();
   }
   if(tecla == 'B'){
+    delay(33);
     mudarTela(ultimaTela);
   }
 }
@@ -745,9 +812,535 @@ void telaConfirmar() {
   scrollTexto(menuConfirmar, 0, 300); 
   
   char tecla = teclado.getKey();
-  if(tecla == '1') mudarTela(JOGANDO);
-  if(tecla == 'B') mudarTela(INICIO);
+  if(tecla == '1') {
+    delay(33);
+    if(modoJogoAtual == SABOTAGEM) mudarTela(JOGANDO_SABOTAGEM);
+    if(modoJogoAtual == DOMINACAO) mudarTela(JOGANDO_DOMINACAO);
+  }
+    if(tecla == 'B') {delay(33); mudarTela(INICIO);}
 }
+
+/* ========================= */
+/* SABOTAGEM                 */
+/* ========================= */
+
+void telaJogandoSabotagem(){
+  String texto;
+  if (!atualizouTela) {
+    lcd.clear();
+    lcd.setCursor(0,0);
+    texto = "ARME A BOMBA";
+    lcd.print(texto);
+
+    lcd.setCursor(texto.length()+1,0);
+    switch(modoArmarAtual){
+      case SENHA:
+        senha_inserida = "";
+        lcd.print("- 3");
+        break;
+      case CARTAO:
+        lcd.print("- 2");
+        break;
+      case BOTAO:
+        lcd.print("- 1");
+        break;
+    }
+    atualizouTela = true;
+  }
+
+  char tecla = teclado.getKey();
+  
+  switch(modoArmarAtual){
+    case BOTAO:
+      if(apertouBotao(BTN_VERDE)){
+        mudarTela(ARMANDO);
+      }
+      if(apertouBotao(BTN_VERMELHO) || tecla) {
+        telaErro(JOGANDO_SABOTAGEM);
+      }
+      if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+        telaErro(JOGANDO_SABOTAGEM);
+        rfid.PICC_HaltA();
+        rfid.PCD_StopCrypto1();
+      }
+      break;
+  
+    case SENHA:
+      if(tecla >= '0' && tecla <= '9'){
+        senha_inserida += tecla;
+        lcd.setCursor(0,1);
+        lcd.print("                ");
+        lcd.setCursor(0,1);
+        lcd.print(senha_inserida);
+      }
+      if(tecla == 'A' || tecla == '#' || apertouBotao(BTN_VERDE)){
+        if(senha_inserida == senha){
+          delay(33);
+          mudarTela(ARMANDO);
+        } else{
+          telaSenhaErrada(JOGANDO_SABOTAGEM);
+        }
+      }
+      if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+        delay(33);
+        telaErro(JOGANDO_SABOTAGEM);
+        rfid.PICC_HaltA();
+        rfid.PCD_StopCrypto1();
+      }
+      if(apertouBotao(BTN_VERMELHO)){
+        delay(33);
+        telaErro(JOGANDO_SABOTAGEM);
+      }
+      break;
+
+    case CARTAO:
+      if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+        int indice = verificarCartao(rfid.uid.uidByte, rfid.uid.size);
+        if (indice != -1 && cartoes[indice].nome == "Verde") {
+          delay(33);
+          mudarTela(ARMANDO);
+        } else {
+          telaErro(JOGANDO_SABOTAGEM);
+        }
+        rfid.PICC_HaltA();
+        rfid.PCD_StopCrypto1();
+      }
+      if(apertouBotao(BTN_VERMELHO) || apertouBotao(BTN_VERDE) || tecla) {
+        telaErro(JOGANDO_SABOTAGEM);
+      }
+      break;
+  }
+}
+
+void telaArmando(){
+  if(!atualizouTela){
+    lcd.clear();
+    lcd.setCursor(1,0);
+    lcd.print("ARMANDO  BOMBA");
+
+    if((tempoExplosao.toInt()/10) >= 8){
+      barraCarregamento(8000);
+    } else{
+      barraCarregamento(4000);
+    }
+    atualizouTela = true;
+  }
+
+  lcd.clear();
+  lcd.setCursor(2,0);
+  lcd.print("BOMBA ARMADA");
+
+  delay(1000);
+  inicioExplosao = millis();
+  mudarTela(ARMADA);
+}
+
+void telaArmada(){
+  if(!atualizouTela){
+    lcd.clear();
+    lcd.setCursor(2,0);
+    lcd.print("BOMBA ARMADA");
+    atualizouTela = true;
+  }
+
+  int tempoRestante = tempoExplosao.toInt() - ((millis() - inicioExplosao) / 1000);
+  if(tempoRestante < 0) tempoRestante = 0;
+
+  char bufferTempo[17];
+  if (tempoRestante >= 60) {
+    int minutos = tempoRestante / 60;
+    int segundos = tempoRestante % 60;
+    snprintf(bufferTempo, sizeof(bufferTempo), "Tempo: %dmin%ds", minutos, segundos);
+  } else {
+    snprintf(bufferTempo, sizeof(bufferTempo), "Tempo: %dseg.", tempoRestante);
+  }
+
+  lcd.setCursor(0, 1);
+  lcd.print(bufferTempo);
+  
+  int tamTexto = strlen(bufferTempo);
+  for (int i = tamTexto; i < 16; i++) {
+    lcd.print(" ");
+  }
+
+  if(tempoRestante <= 0){
+    mudarTela(FINAL_ATAQUE);
+    return;
+  }
+
+  bool querDesarmar = false;
+
+  if (modoArmarAtual == SENHA) {
+    teclado.getKeys();
+    for (int i = 0; i < LIST_MAX; i++) {
+      if ((teclado.key[i].kchar == 'D' && teclado.key[i].kstate == HOLD) || digitalRead(BTN_VERMELHO) == LOW) {
+        querDesarmar = true;
+        break;
+      }
+    }
+  } 
+  else if (modoArmarAtual == BOTAO) {
+    if (digitalRead(BTN_VERMELHO) == LOW) {
+      querDesarmar = true;
+    }
+  } 
+  else if (modoArmarAtual == CARTAO) {
+    if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+      int indice = verificarCartao(rfid.uid.uidByte, rfid.uid.size);
+      if (indice != -1 && cartoes[indice].nome == "Vermelho") {
+        querDesarmar = true;
+      } else{
+        telaErro(ARMADA);
+      }
+      rfid.PICC_HaltA();
+      rfid.PCD_StopCrypto1();
+    }
+  }
+
+  if (querDesarmar) {
+    progressoAnimacao = 0;
+    ultimoFrameAnimacao = millis();
+    mudarTela(DESARMANDO);
+  }
+}
+
+void telaDesarmando() {
+  int tempoRestante = tempoExplosao.toInt() - ((millis() - inicioExplosao) / 1000);
+  if (tempoRestante < 0) tempoRestante = 0;
+
+  if (tempoRestante <= 0) {
+    mudarTela(FINAL_ATAQUE);
+    return;
+  }
+
+  if (!atualizouTela) {
+    lcd.clear();
+    lcd.createChar(0, bloco);
+    atualizouTela = true;
+  }
+
+  char bufferTopo[17];
+  if (tempoRestante >= 60) {
+    int minutos = tempoRestante / 60;
+    int segundos = tempoRestante % 60;
+    snprintf(bufferTopo, sizeof(bufferTopo), "DESARM. %dmin%ds", minutos, segundos);
+  } else {
+    snprintf(bufferTopo, sizeof(bufferTopo), "DESARM. %dseg.", tempoRestante);
+  }
+
+  lcd.setCursor(0, 0);
+  lcd.print(bufferTopo);
+  
+  int tamTexto = strlen(bufferTopo);
+  for (int i = tamTexto; i < 16; i++) {
+    lcd.print(" ");
+  }
+
+  bool mantendoAcao = false;
+
+  if (modoArmarAtual == SENHA) {
+    teclado.getKeys();
+    bool segurandoD = false;
+    for (int i = 0; i < LIST_MAX; i++) {
+      if (teclado.key[i].kchar == 'D' && (teclado.key[i].kstate == HOLD || teclado.key[i].kstate == PRESSED)) {
+        segurandoD = true;
+        break;
+      }
+    }
+    if (segurandoD || digitalRead(BTN_VERMELHO) == LOW) {
+      mantendoAcao = true;
+    }
+  } 
+  else if (modoArmarAtual == BOTAO) {
+    if (digitalRead(BTN_VERMELHO) == LOW) {
+      mantendoAcao = true;
+    }
+  } 
+  else if (modoArmarAtual == CARTAO) {
+    if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+      int indice = verificarCartao(rfid.uid.uidByte, rfid.uid.size);
+      if (indice != -1 && cartoes[indice].nome == "Vermelho") {
+        mantendoAcao = true;
+      }
+      rfid.PICC_HaltA();
+      rfid.PCD_StopCrypto1();
+    }
+  }
+
+  if (!mantendoAcao && modoArmarAtual != CARTAO) {
+    mudarTela(ARMADA);
+    return;
+  }
+
+  if (millis() - ultimoFrameAnimacao >= 500) {
+    ultimoFrameAnimacao = millis();
+
+    lcd.setCursor(progressoAnimacao, 1);
+    lcd.write(byte(0));
+    progressoAnimacao++;
+
+    if (progressoAnimacao >= 17) {
+      mudarTela(FINAL_DEFESA);
+    }
+  }
+}
+
+void telaFinalSabotagem(int key){
+  if(!atualizouTela){
+    lcd.clear();
+    lcd.setCursor(1,0);
+    lcd.print("FINAL DE JOGO!");
+    atualizouTela = true;
+  }
+  
+  switch(key){
+    case 0:
+      scrollTexto(finalDefensores, 1, 150);
+      break;
+    case 1:
+      scrollTexto(finalAtacantes, 1, 150);
+      break;
+  }
+
+  char tecla = teclado.getKey();
+  if(tecla){
+    lcd.clear();
+    lcd.print("REINICIANDO...");
+    delay(1500);
+    reiniciarSoftware();
+  }
+}
+
+/* ========================= */
+/* DOMINACAO                 */
+/* ========================= */
+
+void telaJogandoDominacao(){
+  if (!atualizouTela) {
+    String texto = "";
+    lcd.clear();
+    lcd.setCursor(0,0);
+    
+    texto = "DOMINE A AREA";
+    lcd.print(texto);
+
+    lcd.setCursor(texto.length()+1,0);
+    switch(modoArmarAtual){
+      case CARTAO:
+        lcd.print("- 2");
+        break;
+      case BOTAO:
+        lcd.print("- 1");
+        break;
+    }
+    atualizouTela = true;
+  }
+
+  char tecla = teclado.getKey();
+  switch(modoArmarAtual){
+    case BOTAO:
+      if(apertouBotao(BTN_VERDE) || tecla == '1'){
+        delay(33);
+        mudarTela(DOMINANDO_1);
+      }
+      if(apertouBotao(BTN_VERMELHO) || tecla == '2') {
+        delay(33);
+        mudarTela(DOMINANDO_2);
+      }
+      if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+        telaErro(JOGANDO_DOMINACAO);
+        rfid.PICC_HaltA();
+        rfid.PCD_StopCrypto1();
+      }
+      break;
+
+    case CARTAO:
+      if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+        int indice = verificarCartao(rfid.uid.uidByte, rfid.uid.size);
+        if (indice != -1) {
+          if(cartoes[indice].nome == "Verde"){
+            delay(33);
+            mudarTela(DOMINANDO_1);
+          } else if(cartoes[indice].nome == "Vermelho"){
+            delay(33);
+            mudarTela(DOMINANDO_2);
+          }
+        } else {
+          telaErro(JOGANDO_DOMINACAO);
+        }
+        rfid.PICC_HaltA();
+        rfid.PCD_StopCrypto1();
+      }
+      if(apertouBotao(BTN_VERDE) || tecla == '1' || apertouBotao(BTN_VERMELHO) || tecla == '2'){
+        telaErro(JOGANDO_DOMINACAO);
+      }
+      break;
+  }
+}
+
+void telaDominando(int key){
+  if(!atualizouTela){
+    lcd.clear();
+    lcd.setCursor(0,0);
+    EquipeAtiva = key;
+
+    lcd.print("DOMINANDO A AREA");
+    if((tempoLimite.toInt()/10) <= 80){
+      barraCarregamento(4000);
+    } else{
+      barraCarregamento(8000);
+    }
+    
+    atualizouTela = true;
+  }
+
+  lcd.clear();
+  mudarTela(DOMINADA);
+}
+
+void telaDominada(){
+  if(!atualizouTela){
+    lcd.clear();
+    lcd.createChar(0, setaEsquerda);
+
+    pos1 = (EquipeAtiva == 1) ? 2 : 0;
+    pos2 = (EquipeAtiva == 2) ? 2 : 0;
+
+    if(EquipeAtiva == 1){
+      lcd.setCursor(0, 0);
+      lcd.write(byte(0));
+    } else if(EquipeAtiva == 2){
+      lcd.setCursor(0, 1);
+      lcd.write(byte(0));
+    }
+
+    lcd.setCursor(pos1, 0);
+    lcd.print("EQ. 1: ");
+    pos1 += 7;
+
+    lcd.setCursor(pos2, 1);
+    lcd.print("EQ. 2: ");
+    pos2 += 7;
+
+    if(jaFoi == 0){
+      tempoInicioDominacao = millis();
+      jaFoi = 1;
+    }
+    
+    ultimoPontoContado = millis();
+
+    atualizouTela = true;
+  }
+
+  // --- ACÚMULO DE PONTOS A CADA 1 SEGUNDO ---
+  if(millis() - ultimoPontoContado >= freq){
+    ultimoPontoContado = millis();
+    if(EquipeAtiva == 1) pontosEq1++;
+    if(EquipeAtiva == 2) pontosEq2++;
+  }
+
+  // Atualiza pontos na tela
+  lcd.setCursor(pos1, 0);
+  lcd.print(pontosEq1);
+  lcd.print("   ");
+
+  lcd.setCursor(pos2, 1);
+  lcd.print(pontosEq2);
+  lcd.print("   ");
+
+  char tecla = teclado.getKey();
+  
+  // Verificação de Tempo Limite do Jogo
+  unsigned long tempoDecorridoSeg = (millis() - tempoInicioDominacao) / 1000;
+  if(tempoDecorridoSeg >= tempoLimite.toInt()){
+    delay(33);
+    mudarTela(FINAL_DOMINACAO);
+    return;
+  }
+
+  // Verificação de Vitória por Pontos Máximos
+  if(pontosEq1 >= maxPts || pontosEq2 >= maxPts){
+    delay(33);
+    mudarTela(FINAL_DOMINACAO);
+    return;
+  }
+
+  // Troca de Equipe Ativa via Teclado ou Botões
+  switch(modoArmarAtual){
+    case CARTAO:
+      if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+        int indice = verificarCartao(rfid.uid.uidByte, rfid.uid.size);
+        if (indice != -1) {
+          if(cartoes[indice].nome == "Verde" && EquipeAtiva != 1){
+            EquipeAtiva = 1;
+            delay(33);
+            mudarTela(DOMINADA);
+          } else if(cartoes[indice].nome == "Vermelho" && EquipeAtiva != 2){
+            EquipeAtiva = 2;
+            delay(33);
+            mudarTela(DOMINADA);
+          }
+        } else {
+          telaErro(DOMINADA);
+        }
+        rfid.PICC_HaltA();
+        rfid.PCD_StopCrypto1();
+      }
+      break;
+
+    case BOTAO:
+      if((tecla == 'A' || tecla == '1' || apertouBotao(BTN_VERDE)) && EquipeAtiva != 1){
+        EquipeAtiva = 1;
+        mudarTela(DOMINADA);
+      }
+      if((tecla == 'B' || tecla == '2' || apertouBotao(BTN_VERMELHO)) && EquipeAtiva != 2){
+        EquipeAtiva = 2;
+        mudarTela(DOMINADA);
+      }
+      break;
+  }
+}
+
+void telaFinalDominacao(){
+  if(!atualizouTela){
+    lcd.clear();
+    int equipeVencedora = 0;
+    int ptsVencedor = 0;
+    if(pontosEq1 > pontosEq2){
+      equipeVencedora = 1;
+      ptsVencedor = pontosEq1;
+    } else if(pontosEq2 > pontosEq1){
+      equipeVencedora = 2;
+      ptsVencedor = pontosEq2;
+    } else {
+      equipeVencedora = 3;
+      ptsVencedor = pontosEq1;
+    }
+    if(equipeVencedora == 3){
+      lcd.setCursor(1,0);
+      lcd.print("!!! EMPATE !!!");
+    } else {
+      lcd.setCursor(0,0);
+      lcd.print("VENCE A EQUIPE ");
+      lcd.print(equipeVencedora);
+    }
+    lcd.setCursor(0,1);
+    lcd.print("COM ");
+    lcd.print(ptsVencedor);
+    lcd.print(" PTS.");
+    atualizouTela = true;
+  }
+
+  char tecla = teclado.getKey();
+
+  if(tecla){
+    lcd.clear();
+    lcd.print("REINICIANDO...");
+    delay(1500);
+    reiniciarSoftware();
+  }
+}
+
 
 void setup() {
   Serial.begin(115200);
@@ -824,6 +1417,50 @@ void loop() {
       
     case CONFIRMAR:
       telaConfirmar();
+      break;
+
+    case JOGANDO_SABOTAGEM:
+      telaJogandoSabotagem();
+      break;
+
+    case ARMANDO:
+      telaArmando();
+      break;
+
+    case ARMADA:
+      telaArmada();
+      break;
+
+    case DESARMANDO:
+      telaDesarmando();
+      break;
+
+    case FINAL_ATAQUE:
+      telaFinalSabotagem(1);
+      break;
+    
+    case FINAL_DEFESA:
+      telaFinalSabotagem(0);
+      break;
+
+    case JOGANDO_DOMINACAO:
+      telaJogandoDominacao();
+      break;
+
+    case DOMINANDO_1:
+      telaDominando(1);
+      break;
+
+    case DOMINANDO_2:
+      telaDominando(2);
+      break;
+
+    case DOMINADA:
+      telaDominada();
+      break;
+
+    case FINAL_DOMINACAO:
+      telaFinalDominacao();
       break;
 
     default:
