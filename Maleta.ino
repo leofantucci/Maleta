@@ -299,6 +299,7 @@ void mudarTela(Tela novaTela) {
 
 void telaErroVazio(Tela antiga){
   lcd.clear();
+  
   lcd.setCursor(0,0);
   lcd.print(F("Digite um valor!"));
   delay(3000);
@@ -430,7 +431,7 @@ void telaInicio() {
   ultimaTela = INICIO;
   if (!atualizouTela) {
     lcd.clear();
-    lcd.setCursor(0, 0);
+    lcd.setCursor(3, 0);
     lcd.print(F("Bem-Vindo!"));
     atualizouTela = true;
   }
@@ -447,7 +448,7 @@ void telaModoJogo() {
   ultimaTela = INICIO;
   if (!atualizouTela) {
     lcd.clear();
-    lcd.setCursor(0, 0);
+    lcd.setCursor(1, 0);
     lcd.print(F("Escolha o modo"));
     atualizouTela = true;
   }
@@ -475,7 +476,7 @@ void telaModoArmar() {
   ultimaTela = MODO_JOGO;
   if (!atualizouTela) {
     lcd.clear();
-    lcd.setCursor(0, 0);
+    lcd.setCursor(2, 0);
     lcd.print(F("Modo de armar"));
     atualizouTela = true;
   }
@@ -584,7 +585,7 @@ void telaMenuSenha() {
   if (!atualizouTela) {
     senha_inserida = "";
     lcd.clear();
-    lcd.setCursor(0, 0);
+    lcd.setCursor(1, 0);
     lcd.print(F("Defina a senha"));
   
     atualizouTela = true;
@@ -616,8 +617,8 @@ void telaMenuSenha() {
 void telaVisualizarSenha(){
   if (!atualizouTela) {
     lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print(F("Senha salva"));
+    lcd.setCursor(2,0);
+    lcd.print(F("Senha  salva"));
     lcd.setCursor(0,1);
     lcd.print(senha);
     atualizouTela = true;
@@ -660,7 +661,7 @@ void telaMenuPontos() {
   if (!atualizouTela) {
     maxPts_inserido = "";
     lcd.clear();
-    lcd.setCursor(0,0);
+    lcd.setCursor(1,0);
     lcd.print(F("Def. max. pts."));
     atualizouTela = true;
   }
@@ -692,7 +693,7 @@ void telaMenuPontos() {
 void telaVisualizarPontos(){
   if (!atualizouTela) {
     lcd.clear();
-    lcd.setCursor(0,0);
+    lcd.setCursor(1,0);
     lcd.print(F("Max. de pontos"));
     lcd.setCursor(0,1);
     lcd.print(maxPts);
@@ -739,7 +740,7 @@ void telaTempoExplosao() {
 void telaVisualizarTempoExplosao(){
   if (!atualizouTela) {
     lcd.clear();
-    lcd.setCursor(0,0);
+    lcd.setCursor(1,0);
     lcd.print(F("Tempo explosao"));
     lcd.setCursor(0,1);
     lcd.print(tempoExplosao);
@@ -755,7 +756,7 @@ void telaTempoLimite() {
   if (!atualizouTela) {
     tempoLimite_inserido = "";
     lcd.clear();
-    lcd.setCursor(0, 0);
+    lcd.setCursor(2, 0);
     lcd.print(F("Tempo limite"));
     atualizouTela = true;
   }
@@ -787,7 +788,7 @@ void telaTempoLimite() {
 void telaVisualizarTempoLimite(){
   if (!atualizouTela) {
     lcd.clear();
-    lcd.setCursor(0,0);
+    lcd.setCursor(2,0);
     lcd.print(F("Tempo limite"));
     lcd.setCursor(0,1);
     lcd.print(tempoLimite);
@@ -826,15 +827,12 @@ void telaConfirmar() {
 /* ========================= */
 
 void telaJogandoSabotagem(){
-  String texto;
   if (!atualizouTela) {
     lcd.clear();
-    lcd.setCursor(0,0);
-    texto = "ARME A BOMBA";
+    lcd.setCursor(2,0);
     lcd.print(F("ARME A BOMBA"));
 
-    lcd.setCursor(texto.length()+1,0);
-    switch(modoArmarAtual){
+    /*switch(modoArmarAtual){
       case SENHA:
         senha_inserida = "";
         lcd.print(F("- 3"));
@@ -845,7 +843,7 @@ void telaJogandoSabotagem(){
       case BOTAO:
         lcd.print(F("- 1"));
         break;
-    }
+    }*/
     atualizouTela = true;
   }
 
@@ -1118,22 +1116,19 @@ void telaFinalSabotagem(int key){
 
 void telaJogandoDominacao(){
   if (!atualizouTela) {
-    String texto = "";
     lcd.clear();
-    lcd.setCursor(0,0);
+    lcd.setCursor(1,0);
     
-    texto = "DOMINE A AREA";
-    lcd.print(texto);
+    lcd.print(F("DOMINE A AREA!"));
 
-    lcd.setCursor(texto.length()+1,0);
-    switch(modoArmarAtual){
+    /*switch(modoArmarAtual){
       case CARTAO:
         lcd.print(F("- 2"));
         break;
       case BOTAO:
         lcd.print(F("- 1"));
         break;
-    }
+    }*/
     atualizouTela = true;
   }
 
