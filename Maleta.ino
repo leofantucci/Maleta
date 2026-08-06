@@ -5,6 +5,7 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <Keypad.h>
+#include <EEPROM.h>
 
 // ================= STRUCTS E ENUMS =================
 enum Tela {
@@ -67,6 +68,18 @@ struct ScrollLCD {
   int posicao;
   unsigned long ultimoScroll;
   const char* texto;
+};
+
+// Pacote de dados para salvar na EEPROM
+struct DadosJogo {
+  byte validacao; // <-- NOVA VARIÁVEL (Garante que os dados existem)
+  ModoJogo modoJogo;
+  ModoArmar modoArmar;
+  Duracao duracao;
+  int tempoExplosao;
+  int tempoLimite;
+  int maxPts;
+  char senha[10];
 };
 
 ScrollLCD menu = {0, 0, " (1) Sabotagem - (2) Dominacao"};
@@ -186,6 +199,47 @@ String textoConfirmacaoGlobal = "";
 /* ========================= */
 /* FUNÇÕES                   */
 /* ========================= */
+void salvarUltimoJogo() {
+  DadosJogo dados;
+  
+  dados.validacao = 99; // Nosso "carimbo" secreto de jogo salvo!
+  
+  dados.modoJogo = modoJogoAtual;
+  dados.modoArmar = modoArmarAtual;
+  dados.duracao = duracaoAtual;
+  
+  dados.tempoExplosao = tempoExplosao.toInt();
+  dados.tempoLimite = tempoLimite.toInt();
+  dados.maxPts = maxPts;
+  senha.toCharArray(dados.senha, sizeof(dados.senha));
+
+  EEPROM.put(0, dados);
+  Serial.println(F("Jogo salvo na EEPROM!"));
+}
+
+bool carregarUltimoJogo() {
+  DadosJogo dados;
+  EEPROM.get(0, dados);
+
+  // Verifica se o carimbo está lá. Se for diferente de 99, a EEPROM está vazia!
+  if (dados.validacao != 99) {
+    return false; // Retorna erro (não tem jogo salvo)
+  }
+
+  // Se passou, carrega as variáveis normais
+  modoJogoAtual = dados.modoJogo;
+  modoArmarAtual = dados.modoArmar;
+  duracaoAtual = dados.duracao;
+  
+  tempoExplosao = String(dados.tempoExplosao);
+  tempoLimite = String(dados.tempoLimite);
+  maxPts = dados.maxPts;
+  senha = String(dados.senha);
+  
+  Serial.println(F("Ultimo jogo carregado!"));
+  return true; // Retorna sucesso!
+}
+
 String nomeModoJogoAtual(){
   switch(modoJogoAtual){
     case SABOTAGEM:
@@ -442,7 +496,25 @@ void telaInicio() {
   if (tecla == '1') {
     mudarTela(MODO_JOGO);
   }
+  if (tecla == '2') {
+    delay(33);
+    
+    if (carregarUltimoJogo()) {
+      // Deu certo, tem jogo salvo!
+      mudarTela(CONFIRMAR); 
+    } else {
+      // Deu errado, EEPROM está vazia!
+      lcd.clear();
+      lcd.setCursor(2, 0);
+      lcd.print(F("NENHUM JOGO"));
+      lcd.setCursor(2, 1);
+      lcd.print(F("SALVO AINDA!"));
+      delay(2000); // Mostra o erro por 2 segundos
+      atualizouTela = false; // Força recarregar a tela de Bem-Vindo
+    }
+  }
 }
+
 
 void telaModoJogo() {
   ultimaTela = INICIO;
@@ -816,6 +888,7 @@ void telaConfirmar() {
   char tecla = teclado.getKey();
   if(tecla == '1') {
     delay(33);
+    salvarUltimoJogo();
     if(modoJogoAtual == SABOTAGEM) mudarTela(JOGANDO_SABOTAGEM);
     if(modoJogoAtual == DOMINACAO) mudarTela(JOGANDO_DOMINACAO);
   }
@@ -828,6 +901,7 @@ void telaConfirmar() {
 
 void telaJogandoSabotagem(){
   if (!atualizouTela) {
+    senha_inserida = "";
     lcd.clear();
     lcd.setCursor(2,0);
     lcd.print(F("ARME A BOMBA"));
@@ -877,17 +951,20 @@ void telaJogandoSabotagem(){
           delay(33);
           mudarTela(ARMANDO);
         } else{
+          senha_inserida = "";
           telaSenhaErrada(JOGANDO_SABOTAGEM);
         }
       }
       if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
         delay(33);
+        senha_inserida = "";
         telaErro(JOGANDO_SABOTAGEM);
         rfid.PICC_HaltA();
         rfid.PCD_StopCrypto1();
       }
       if(apertouBotao(BTN_VERMELHO)){
         delay(33);
+        senha_inserida = "";
         telaErro(JOGANDO_SABOTAGEM);
       }
       break;
