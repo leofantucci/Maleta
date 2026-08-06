@@ -831,19 +831,19 @@ void telaJogandoSabotagem(){
     lcd.clear();
     lcd.setCursor(0,0);
     texto = "ARME A BOMBA";
-    lcd.print(texto);
+    lcd.print(F("ARME A BOMBA"));
 
     lcd.setCursor(texto.length()+1,0);
     switch(modoArmarAtual){
       case SENHA:
         senha_inserida = "";
-        lcd.print("- 3");
+        lcd.print(F("- 3"));
         break;
       case CARTAO:
-        lcd.print("- 2");
+        lcd.print(F("- 2"));
         break;
       case BOTAO:
-        lcd.print("- 1");
+        lcd.print(F("- 1"));
         break;
     }
     atualizouTela = true;
@@ -870,7 +870,7 @@ void telaJogandoSabotagem(){
       if(tecla >= '0' && tecla <= '9'){
         senha_inserida += tecla;
         lcd.setCursor(0,1);
-        lcd.print("                ");
+        lcd.print(F("                "));
         lcd.setCursor(0,1);
         lcd.print(senha_inserida);
       }
@@ -917,7 +917,7 @@ void telaArmando(){
   if(!atualizouTela){
     lcd.clear();
     lcd.setCursor(1,0);
-    lcd.print("ARMANDO  BOMBA");
+    lcd.print(F("ARMANDO  BOMBA"));
 
     if((tempoExplosao.toInt()/10) >= 8){
       barraCarregamento(8000);
@@ -929,7 +929,7 @@ void telaArmando(){
 
   lcd.clear();
   lcd.setCursor(2,0);
-  lcd.print("BOMBA ARMADA");
+  lcd.print(F("BOMBA ARMADA"));
 
   delay(1000);
   inicioExplosao = millis();
@@ -940,7 +940,7 @@ void telaArmada(){
   if(!atualizouTela){
     lcd.clear();
     lcd.setCursor(2,0);
-    lcd.print("BOMBA ARMADA");
+    lcd.print(F("BOMBA ARMADA"));
     atualizouTela = true;
   }
 
@@ -961,7 +961,7 @@ void telaArmada(){
   
   int tamTexto = strlen(bufferTempo);
   for (int i = tamTexto; i < 16; i++) {
-    lcd.print(" ");
+    lcd.print(F(" "));
   }
 
   if(tempoRestante <= 0){
@@ -1034,7 +1034,7 @@ void telaDesarmando() {
   
   int tamTexto = strlen(bufferTopo);
   for (int i = tamTexto; i < 16; i++) {
-    lcd.print(" ");
+    lcd.print(F(" "));
   }
 
   bool mantendoAcao = false;
@@ -1090,7 +1090,7 @@ void telaFinalSabotagem(int key){
   if(!atualizouTela){
     lcd.clear();
     lcd.setCursor(1,0);
-    lcd.print("FINAL DE JOGO!");
+    lcd.print(F("FINAL DE JOGO!"));
     atualizouTela = true;
   }
   
@@ -1106,7 +1106,7 @@ void telaFinalSabotagem(int key){
   char tecla = teclado.getKey();
   if(tecla){
     lcd.clear();
-    lcd.print("REINICIANDO...");
+    lcd.print(F("REINICIANDO..."));
     delay(1500);
     reiniciarSoftware();
   }
@@ -1128,10 +1128,10 @@ void telaJogandoDominacao(){
     lcd.setCursor(texto.length()+1,0);
     switch(modoArmarAtual){
       case CARTAO:
-        lcd.print("- 2");
+        lcd.print(F("- 2"));
         break;
       case BOTAO:
-        lcd.print("- 1");
+        lcd.print(F("- 1"));
         break;
     }
     atualizouTela = true;
@@ -1185,7 +1185,7 @@ void telaDominando(int key){
     lcd.setCursor(0,0);
     EquipeAtiva = key;
 
-    lcd.print("DOMINANDO A AREA");
+    lcd.print(F("DOMINANDO A AREA"));
     if((tempoLimite.toInt()/10) <= 80){
       barraCarregamento(4000);
     } else{
@@ -1216,11 +1216,11 @@ void telaDominada(){
     }
 
     lcd.setCursor(pos1, 0);
-    lcd.print("EQ. 1: ");
+    lcd.print(F("EQ. 1: "));
     pos1 += 7;
 
     lcd.setCursor(pos2, 1);
-    lcd.print("EQ. 2: ");
+    lcd.print(F("EQ. 2: "));
     pos2 += 7;
 
     if(jaFoi == 0){
@@ -1243,11 +1243,11 @@ void telaDominada(){
   // Atualiza pontos na tela
   lcd.setCursor(pos1, 0);
   lcd.print(pontosEq1);
-  lcd.print("   ");
+  lcd.print(F("   "));
 
   lcd.setCursor(pos2, 1);
   lcd.print(pontosEq2);
-  lcd.print("   ");
+  lcd.print(F("   "));
 
   char tecla = teclado.getKey();
   
@@ -1319,16 +1319,16 @@ void telaFinalDominacao(){
     }
     if(equipeVencedora == 3){
       lcd.setCursor(1,0);
-      lcd.print("!!! EMPATE !!!");
+      lcd.print(F("!!! EMPATE !!!"));
     } else {
       lcd.setCursor(0,0);
-      lcd.print("VENCE A EQUIPE ");
+      lcd.print(F("VENCE A EQUIPE "));
       lcd.print(equipeVencedora);
     }
     lcd.setCursor(0,1);
-    lcd.print("COM ");
+    lcd.print(F("COM "));
     lcd.print(ptsVencedor);
-    lcd.print(" PTS.");
+    lcd.print(F(" PTS."));
     atualizouTela = true;
   }
 
@@ -1336,7 +1336,7 @@ void telaFinalDominacao(){
 
   if(tecla){
     lcd.clear();
-    lcd.print("REINICIANDO...");
+    lcd.print(F("REINICIANDO..."));
     delay(1500);
     reiniciarSoftware();
   }
