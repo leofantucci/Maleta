@@ -288,7 +288,7 @@ void mudarTela(Tela novaTela) {
 void telaErroVazio(Tela antiga){
   lcd.clear();
   lcd.setCursor(0,0);
-  lcd.print("Digite um valor!");
+  lcd.print(F("Digite um valor!"));
   delay(3000);
   mudarTela(antiga);
 }
@@ -296,7 +296,7 @@ void telaErroVazio(Tela antiga){
 void telaErro(Tela antiga){
   lcd.clear();
   lcd.setCursor(6,0);
-  lcd.print("ERRO");
+  lcd.print(F("ERRO"));
   delay(1000);
   mudarTela(antiga);
 }
@@ -360,7 +360,7 @@ void barraCarregamento(int tempo) {
   int posicao = 0;
 
   lcd.setCursor(0, 1);
-  lcd.print("                ");
+  lcd.print(F("                "));
 
   while (millis() - inicioTimer < tempo) {
     lcd.setCursor(posicao, 1);
@@ -371,7 +371,7 @@ void barraCarregamento(int tempo) {
     if (posicao >= 16) {
       posicao = 0;
       lcd.setCursor(0, 1);
-      lcd.print("                ");
+      lcd.print(F("                "));
     }
   }
 }
@@ -385,7 +385,7 @@ void telaInicio() {
   if (!atualizouTela) {
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Bem-Vindo!");
+    lcd.print(F("Bem-Vindo!"));
     atualizouTela = true;
   }
 
@@ -402,7 +402,7 @@ void telaModoJogo() {
   if (!atualizouTela) {
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Escolha o modo:");
+    lcd.print(F("Escolha o modo"));
     atualizouTela = true;
   }
 
@@ -427,7 +427,7 @@ void telaModoArmar() {
   if (!atualizouTela) {
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Modo de armar:");
+    lcd.print(F("Modo de armar"));
     atualizouTela = true;
   }
   
@@ -475,9 +475,9 @@ void telaDuracao(){
     lcd.clear();
     lcd.setCursor(0, 0);
     if(modoJogoAtual == SABOTAGEM){
-      lcd.print("Tempo apos armar");
+      lcd.print(F("Tempo apos armar"));
     } else if(modoJogoAtual == DOMINACAO){
-      lcd.print("Limite de tempo");
+      lcd.print(F("Limite de tempo"));
     }
     atualizouTela = true;
   }  
@@ -530,7 +530,7 @@ void telaMenuSenha() {
     senha_inserida = "";
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Defina a senha:");
+    lcd.print(F("Defina a senha"));
   
     atualizouTela = true;
   }
@@ -546,7 +546,7 @@ void telaMenuSenha() {
   if(tecla == 'D'){
     senha_inserida = "";
     lcd.setCursor(0,1);
-    lcd.print("                ");
+    lcd.print(F("                "));
   }
   if(tecla == '#'){
     salvarSenha();
@@ -560,7 +560,7 @@ void telaVisualizarSenha(){
   if (!atualizouTela) {
     lcd.clear();
     lcd.setCursor(0,0);
-    lcd.print("Senha salva");
+    lcd.print(F("Senha salva"));
     lcd.setCursor(0,1);
     lcd.print(senha);
     atualizouTela = true;
@@ -574,7 +574,7 @@ void telaMenuConfirmarPontos(){
   if (!atualizouTela) {
     lcd.clear();
     lcd.setCursor(0,1);
-    lcd.print("(1)Sim - (2)Nao");
+    lcd.print(F("(1)Sim - (2)Nao"));
     atualizouTela = true;
   }
     
@@ -601,7 +601,7 @@ void telaMenuPontos() {
     maxPts_inserido = "";
     lcd.clear();
     lcd.setCursor(0,0);
-    lcd.print("Def. max. pts.");
+    lcd.print(F("Def. max. pts."));
     atualizouTela = true;
   }
   
@@ -610,14 +610,14 @@ void telaMenuPontos() {
   if(tecla >= '0' && tecla <= '9'){
     maxPts_inserido += tecla;
     lcd.setCursor(0,1);
-    lcd.print("                ");
+    lcd.print(F("                "));
     lcd.setCursor(0,1);
     lcd.print(maxPts_inserido);
   }
   if(tecla == 'D'){
     maxPts_inserido = "";
     lcd.setCursor(0,1);
-    lcd.print("                ");
+    lcd.print(F("                "));
   }
   if(tecla == '#'){
     salvarPontos();
@@ -631,7 +631,7 @@ void telaVisualizarPontos(){
   if (!atualizouTela) {
     lcd.clear();
     lcd.setCursor(0,0);
-    lcd.print("Max. de pontos");
+    lcd.print(F("Max. de pontos"));
     lcd.setCursor(0,1);
     lcd.print(maxPts);
     atualizouTela = true;
@@ -646,7 +646,7 @@ void telaTempoExplosao() {
     tempoExplosao_inserido = "";
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Tempo apos armar");
+    lcd.print(F("Tempo apos armar"));
     atualizouTela = true;
   }
 
@@ -654,14 +654,14 @@ void telaTempoExplosao() {
   if(tecla >= '0' && tecla <= '9'){
     tempoExplosao_inserido += tecla;
     lcd.setCursor(0,1);
-    lcd.print("                ");
+    lcd.print(F("                "));
     lcd.setCursor(0,1);
     lcd.print(tempoExplosao_inserido);
   }
   if(tecla == 'D'){
     tempoExplosao_inserido = "";
     lcd.setCursor(0,1);
-    lcd.print("                ");
+    lcd.print(F("                "));
   }
   if(tecla == '#'){
     salvarTempoExplosao();
@@ -675,9 +675,10 @@ void telaVisualizarTempoExplosao(){
   if (!atualizouTela) {
     lcd.clear();
     lcd.setCursor(0,0);
-    lcd.print("Tempo explosao");
+    lcd.print(F("Tempo explosao"));
     lcd.setCursor(0,1);
-    lcd.print(tempoExplosao + "seg.");
+    lcd.print(tempoExplosao);
+    lcd.print(F("seg."));
     atualizouTela = true;
   }
   delay(1000);
@@ -690,7 +691,7 @@ void telaTempoLimite() {
     tempoLimite_inserido = "";
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Tempo limite");
+    lcd.print(F("Tempo limite"));
     atualizouTela = true;
   }
 
@@ -698,14 +699,14 @@ void telaTempoLimite() {
   if(tecla >= '0' && tecla <= '9'){
     tempoLimite_inserido += tecla;
     lcd.setCursor(0,1);
-    lcd.print("                ");
+    lcd.print(F("                "));
     lcd.setCursor(0,1);
     lcd.print(tempoLimite_inserido);
   }
   if(tecla == 'D'){
     tempoLimite_inserido = "";
     lcd.setCursor(0,1);
-    lcd.print("                ");
+    lcd.print(F("                "));
   }
   if(tecla == '#'){
     salvarTempoLimite();
@@ -719,9 +720,10 @@ void telaVisualizarTempoLimite(){
   if (!atualizouTela) {
     lcd.clear();
     lcd.setCursor(0,0);
-    lcd.print("Tempo limite");
+    lcd.print(F("Tempo limite"));
     lcd.setCursor(0,1);
-    lcd.print(tempoLimite + "seg.");
+    lcd.print(tempoLimite);
+    lcd.print(F("seg."));
     atualizouTela = true;
   }
   delay(1000);
@@ -735,7 +737,7 @@ void telaConfirmar() {
     
     // ADICIONE ISTO PARA MOSTRAR OS BOTÕES NA LINHA DE BAIXO
     lcd.setCursor(0, 1);
-    lcd.print("1-Iniciar B-Sair");
+    lcd.print(F("1-Iniciar B-Sair"));
     
     atualizouTela = true;
   }
@@ -763,7 +765,7 @@ void setup() {
   pinMode(BTN_VERDE, INPUT_PULLUP);
   pinMode(BTN_VERMELHO, INPUT_PULLUP);
 
-  Serial.println("Sistema iniciado");
+  Serial.println(F("Sistema iniciado"));
 };
 
 void loop() {
