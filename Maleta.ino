@@ -397,6 +397,7 @@ void barraCarregamento(int tempo) {
 }
 
 bool apertouBotao(int botao) {
+  delay(50); // DEBOUNCE INICIAL (Faltou esse)
   if (digitalRead(botao) == LOW) {
     while (digitalRead(botao) == LOW) {
       delay(10); 
@@ -1358,6 +1359,8 @@ void setup() {
   pinMode(BTN_VERDE, INPUT_PULLUP);
   pinMode(BTN_VERMELHO, INPUT_PULLUP);
 
+  teclado.setDebounceTime(50);
+  
   Serial.println(F("Sistema iniciado"));
 };
 
