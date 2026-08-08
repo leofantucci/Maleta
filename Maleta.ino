@@ -87,18 +87,9 @@ struct DadosJogo {
   char senha[10];
 };
 
-ScrollLCD menu = {0, 0, " (1) Sabotagem - (2) Dominacao"};
-ScrollLCD inicio = {0, 0, " (1) Novo Jogo - (2) Ultimo Jogo"};
-ScrollLCD duracaoSabotagem = {0, 0, " (1) CQB: 50s. - (2) Padrao: 1m30s. - (3) Milsim: 4m20s. - (4) Personalizada"};
-ScrollLCD duracaoDominacao = {0, 0, " (1) CQB: 10min. - (2) Padrao: 30min. - (3) Milsim: 60min. - (4) Personalizada"};
-ScrollLCD menuSabotagem = {0, 0, " (1) Botao - (2) Cartao - (3) Senha"};
-ScrollLCD menuDominacao = {0, 0, " (1) Botao - (2) Cartao"};
-ScrollLCD tempoSabotagem = {0, 0, " Defina o tempo de explosao apos armar (seg.)"};
-ScrollLCD tempoDominacao = {0, 0, " Defina o tempo limite da partida (seg.)"};
+
 ScrollLCD finalAtacantes = {0, 0, "    ATACANTES VENCERAM!"};
 ScrollLCD finalDefensores = {0, 0, "    DEFENSORES VENCERAM!"};
-ScrollLCD menuConfirmarPontos = {0, 0, " Deseja personalizar o max. de pontos? (PADRAO = (Tempo Lim./2)"};
-ScrollLCD menuConfirmar = {0,0, ""};
 
 
 // ================= LCD I2C =================
@@ -112,6 +103,7 @@ MFRC522 rfid(SS_PIN, RST_PIN);
 // ================= BOTÕES ==================
 #define BTN_VERDE A1
 #define BTN_VERMELHO A2
+#define BTN_3 A3
 
 // ================ TECLADO ==================
 const byte LINHAS = 4;
@@ -127,6 +119,8 @@ char teclas[LINHAS][COLUNAS] = {
 Cartao cartoes[] = {
   {{0xAA, 0xBB, 0xCC, 0xDD}, "Vermelho"},
   {{0x11, 0x22, 0x33, 0x44}, "Verde"},
+  {{0x50, 0x13, 0x5C, 0x61}, "Cartao"},
+  {{0x51, 0xCA, 0x6C, 0x06}, "Tag"},
 };
 
 const int NUM_CARTOES = sizeof(cartoes) / sizeof(cartoes[0]);
@@ -298,39 +292,6 @@ String nomeDuracaoAtual(){
   }
 }
 
-void atualizarTextoConfirmacao() {
-  // 1. Montamos a String passo a passo (usar += é mais leve para o Arduino)
-  textoConfirmacaoGlobal = F(" Jogo: "); 
-  textoConfirmacaoGlobal += nomeModoJogoAtual();
-  textoConfirmacaoGlobal += F(" - Armar: ");
-  textoConfirmacaoGlobal += nomeModoArmarAtual();
-  textoConfirmacaoGlobal += F(" - Dur.: "); 
-  textoConfirmacaoGlobal += nomeDuracaoAtual();
-  
-  if (modoJogoAtual == SABOTAGEM) {
-    textoConfirmacaoGlobal += F(" - Tempo: ");
-    textoConfirmacaoGlobal += tempoExplosao;
-    textoConfirmacaoGlobal += F("seg.");
-    if (modoArmarAtual == SENHA) {
-      textoConfirmacaoGlobal += F(" - Senha: ");
-      textoConfirmacaoGlobal += senha;
-    }
-  } 
-  else if (modoJogoAtual == DOMINACAO) {
-    textoConfirmacaoGlobal += F(" - Tempo: "); 
-    textoConfirmacaoGlobal += tempoLimite;
-    textoConfirmacaoGlobal += F("seg.");
-    textoConfirmacaoGlobal += F(" - Pontos: ");
-    textoConfirmacaoGlobal += maxPts;
-  }
-  
-  textoConfirmacaoGlobal += F("   "); // Espaçamento extra no final para o letreiro não grudar
-
-  // 2. Usamos .c_str() para passar o ponteiro seguro da String global para a struct
-  menuConfirmar.texto = textoConfirmacaoGlobal.c_str();
-  menuConfirmar.posicao = 0; // Reseta o scroll
-}
-
 void (*reiniciarSoftware)(void) = 0;
 
 void scrollTexto(ScrollLCD &scroll, int linha, unsigned long intervalo) {
@@ -358,14 +319,6 @@ void mudarTela(Tela novaTela) {
   atualizouTela = false;
   
   // Reseta os índices de rolagem dos menus
-  menu.posicao = 0;
-  inicio.posicao = 0;
-  duracaoSabotagem.posicao = 0;
-  duracaoDominacao.posicao = 0;
-  menuSabotagem.posicao = 0;
-  menuDominacao.posicao = 0;
-  tempoSabotagem.posicao = 0;
-  tempoDominacao.posicao = 0;
   finalAtacantes.posicao = 0;
   finalDefensores.posicao = 0;
 
@@ -384,14 +337,6 @@ void telaErroVazio(Tela antiga){
   lcd.setCursor(0,0);
   lcd.print(F("Digite um valor!"));
   delay(3000);
-  mudarTela(antiga);
-}
-
-void telaErro(Tela antiga){
-  lcd.clear();
-  lcd.setCursor(6,0);
-  lcd.print(F("ERRO"));
-  delay(1000);
   mudarTela(antiga);
 }
 
@@ -481,9 +426,6 @@ void barraCarregamento(int tempo) {
 bool apertouBotao(int botao) {
   delay(50); // DEBOUNCE INICIAL (Faltou esse)
   if (digitalRead(botao) == LOW) {
-    while (digitalRead(botao) == LOW) {
-      delay(10); 
-    }
     return true; 
   }
   return false;
@@ -517,8 +459,8 @@ void startSelecao(char tecla, int numMax){
     lcd.clear();
     ultimaSelecao = selecaoAtual;
   }
-  if (tecla == 'B' && selecaoAtual > 0) selecaoAtual--;
-  if (tecla == 'A' && selecaoAtual < numMax) selecaoAtual++;
+  if ((tecla == 'B' || apertouBotao(BTN_VERMELHO))&& selecaoAtual > 0) selecaoAtual--;
+  if ((tecla == 'A' || apertouBotao(BTN_VERDE)) && selecaoAtual < numMax) selecaoAtual++;
 }
 
 void printarOpcaoBaixo(){
@@ -574,7 +516,7 @@ void telaInicio() {
 
   startSelecao(tecla, 1);
   
-  if(tecla == '#'){
+  if(tecla == '#' || apertouBotao(BTN_3)){
     delay(33);
     switch(selecaoAtual){
       case 1:
@@ -582,7 +524,6 @@ void telaInicio() {
         break;
       case 0:
         if (carregarUltimoJogo()) {
-          atualizarTextoConfirmacao();
           mudarTela(CONFIRMAR);
         } else {
           lcd.clear();
@@ -638,7 +579,7 @@ void telaModoJogo() {
     mudarTela(ultimaTela);
   }
 
-  if(tecla == '#'){
+  if(tecla == '#' || apertouBotao(BTN_3)){
     delay(33);
     switch(selecaoAtual){
       case 2:
@@ -709,7 +650,7 @@ void telaModoArmar() {
     mudarTela(ultimaTela);
   }
 
-  if(tecla == '#'){
+  if(tecla == '#' || apertouBotao(BTN_3)){
     switch(selecaoAtual){
       case 3:
         delay(33);
@@ -796,7 +737,7 @@ void telaDuracao(){
     mudarTela(ultimaTela);
   }
 
-  if(tecla == '#'){
+  if(tecla == '#' || apertouBotao(BTN_3)){
     switch(selecaoAtual){
       case 4:
         mudarDuracao(CQB);
@@ -859,7 +800,7 @@ void telaMenuSenha() {
       mudarTela(ultimaTela);
     }
   }
-  if(tecla == '#'){
+  if(tecla == '#' || apertouBotao(BTN_3)){
     delay(33);
     salvarSenha();
   }
@@ -911,7 +852,7 @@ void telaMenuConfirmarPontos(){
     mudarTela(ultimaTela);
   }
 
-  if(tecla == '#'){
+  if(tecla == '#' || apertouBotao(BTN_3)){
     switch(selecaoAtual){
       case 1:
         delay(33);
@@ -957,7 +898,7 @@ void telaMenuPontos() {
     }
   }
 
-  if(tecla == '#'){
+  if(tecla == '#' || apertouBotao(BTN_3)){
     delay(33);
     salvarPontos();
   }
@@ -1007,7 +948,7 @@ void telaTempoExplosao() {
     }
   }
 
-  if(tecla == '#'){
+  if(tecla == '#' || apertouBotao(BTN_3)){
     delay(33);
     salvarTempoExplosao();
   }
@@ -1059,7 +1000,7 @@ void telaTempoLimite() {
     }
   }
 
-  if(tecla == '#'){
+  if(tecla == '#' || apertouBotao(BTN_3)){
     delay(33);
     salvarTempoLimite();
   }
@@ -1258,7 +1199,7 @@ void telaConfirmar() {
     mudarTela(INICIO);
   }
 
-  if(tecla == '#'){
+  if(tecla == '#' || apertouBotao(BTN_3)){
     delay(33);
     if(selecaoAtual > 1){
       selecaoAtual -= 1;
@@ -1304,16 +1245,8 @@ void telaJogandoSabotagem(){
   
   switch(modoArmarAtual){
     case BOTAO:
-      if(apertouBotao(BTN_VERDE)){
+      if(digitalRead(BTN_VERDE) == LOW){
         mudarTela(ARMANDO);
-      }
-      if(apertouBotao(BTN_VERMELHO) || tecla) {
-        telaErro(JOGANDO_SABOTAGEM);
-      }
-      if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
-        telaErro(JOGANDO_SABOTAGEM);
-        rfid.PICC_HaltA();
-        rfid.PCD_StopCrypto1();
       }
       break;
   
@@ -1325,7 +1258,7 @@ void telaJogandoSabotagem(){
         lcd.setCursor(0,1);
         lcd.print(senha_inserida);
       }
-      if(tecla == 'A' || tecla == '#' || apertouBotao(BTN_VERDE)){
+      if(tecla == 'A' || tecla == '#' || digitalRead(BTN_VERDE) == LOW){
         if(senha_inserida == senha){
           delay(33);
           mudarTela(ARMANDO);
@@ -1334,60 +1267,98 @@ void telaJogandoSabotagem(){
           telaSenhaErrada(JOGANDO_SABOTAGEM);
         }
       }
-      if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
-        delay(33);
-        senha_inserida = "";
-        telaErro(JOGANDO_SABOTAGEM);
-        rfid.PICC_HaltA();
-        rfid.PCD_StopCrypto1();
-      }
-      if(apertouBotao(BTN_VERMELHO)){
-        delay(33);
-        senha_inserida = "";
-        telaErro(JOGANDO_SABOTAGEM);
-      }
       break;
 
     case CARTAO:
       if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
         int indice = verificarCartao(rfid.uid.uidByte, rfid.uid.size);
-        if (indice != -1 && cartoes[indice].nome == "Verde") {
+        if (indice != -1 && cartoes[indice].nome == "Cartao") {
           delay(33);
           mudarTela(ARMANDO);
-        } else {
-          telaErro(JOGANDO_SABOTAGEM);
         }
         rfid.PICC_HaltA();
         rfid.PCD_StopCrypto1();
-      }
-      if(apertouBotao(BTN_VERMELHO) || apertouBotao(BTN_VERDE) || tecla) {
-        telaErro(JOGANDO_SABOTAGEM);
       }
       break;
   }
 }
 
-void telaArmando(){
-  if(!atualizouTela){
+void telaArmando() {
+  static unsigned long ultimoMomentoCartao = 0; 
+  
+  if (!atualizouTela) {
     lcd.clear();
     lcd.setCursor(1,0);
     lcd.print(F("ARMANDO  BOMBA"));
+    lcd.createChar(0, bloco); 
 
-    if((tempoExplosao.toInt()/10) >= 8){
-      barraCarregamento(8000);
-    } else{
-      barraCarregamento(4000);
-    }
+    progressoAnimacao = 0;
+    ultimoFrameAnimacao = millis();
+    ultimoMomentoCartao = millis(); 
     atualizouTela = true;
   }
+  
+  int tempoTotal = ((tempoExplosao.toInt() / 10) >= 8) ? 8000 : 4000;
+  int tempoPorFrame = tempoTotal / 16;
+  
+  // Assumimos verdadeiro (ex: para o modo SENHA que não precisa segurar)
+  bool mantendoAcao = true; 
 
-  lcd.clear();
-  lcd.setCursor(2,0);
-  lcd.print(F("BOMBA ARMADA"));
+  if (modoJogoAtual == SABOTAGEM) {
+    if (modoArmarAtual == CARTAO) {
+      rfid.PCD_AntennaOff();
+      delay(5);
+      rfid.PCD_AntennaOn();
 
-  delay(1000);
-  inicioExplosao = millis();
-  mudarTela(ARMADA);
+      if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+        int indice = verificarCartao(rfid.uid.uidByte, rfid.uid.size);
+        if (indice != -1 && cartoes[indice].nome == "Cartao") {
+          ultimoMomentoCartao = millis(); 
+        }
+        rfid.PICC_HaltA();
+        rfid.PCD_StopCrypto1();
+      }
+      
+      // Se passar de 400ms sem ver o cartão, considera que soltou
+      if (millis() - ultimoMomentoCartao > 400) mantendoAcao = false; 
+
+    } else if (modoArmarAtual == BOTAO) {
+      // Verifica se o Botão Verde continua pressionado
+      if (digitalRead(BTN_VERDE) == HIGH) { // HIGH = Botão solto
+        mantendoAcao = false;
+      }
+    }
+  }
+
+  // Se soltou/tirou o cartão ou botão, cancela!
+  if (!mantendoAcao) {
+    lcd.clear();
+    lcd.setCursor(3,0);
+    lcd.print(F("CANCELADO!"));
+    delay(1000); 
+    
+    rfid.PCD_Init(); 
+    mudarTela(JOGANDO_SABOTAGEM); 
+    return; 
+  }
+
+  if (millis() - ultimoFrameAnimacao >= tempoPorFrame) {
+    ultimoFrameAnimacao = millis();
+    lcd.setCursor(progressoAnimacao, 1);
+    lcd.write(byte(0));
+    progressoAnimacao++;
+
+    if (progressoAnimacao >= 16) {
+      lcd.clear();
+      lcd.setCursor(2,0);
+      lcd.print(F("BOMBA ARMADA"));
+      delay(1000);
+      
+      inicioExplosao = millis();
+      rfid.PCD_Init(); 
+      mudarTela(ARMADA);
+    }
+  }
 }
 
 void telaArmada(){
@@ -1442,10 +1413,8 @@ void telaArmada(){
   else if (modoArmarAtual == CARTAO) {
     if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
       int indice = verificarCartao(rfid.uid.uidByte, rfid.uid.size);
-      if (indice != -1 && cartoes[indice].nome == "Vermelho") {
+      if (indice != -1 && cartoes[indice].nome == "Tag") {
         querDesarmar = true;
-      } else{
-        telaErro(ARMADA);
       }
       rfid.PICC_HaltA();
       rfid.PCD_StopCrypto1();
@@ -1460,6 +1429,8 @@ void telaArmada(){
 }
 
 void telaDesarmando() {
+  static unsigned long ultimoMomentoCartaoDesarme = 0;
+  
   int tempoRestante = tempoExplosao.toInt() - ((millis() - inicioExplosao) / 1000);
   if (tempoRestante < 0) tempoRestante = 0;
 
@@ -1471,6 +1442,7 @@ void telaDesarmando() {
   if (!atualizouTela) {
     lcd.clear();
     lcd.createChar(0, bloco);
+    ultimoMomentoCartaoDesarme = millis();
     atualizouTela = true;
   }
 
@@ -1487,54 +1459,56 @@ void telaDesarmando() {
   lcd.print(bufferTopo);
   
   int tamTexto = strlen(bufferTopo);
-  for (int i = tamTexto; i < 16; i++) {
-    lcd.print(F(" "));
-  }
+  for (int i = tamTexto; i < 16; i++) { lcd.print(F(" ")); }
 
   bool mantendoAcao = false;
 
-  if (modoArmarAtual == SENHA) {
+  if (modoArmarAtual == BOTAO) {
+    if (digitalRead(BTN_VERMELHO) == LOW) mantendoAcao = true;
+  } 
+  else if (modoArmarAtual == SENHA) {
+    // Permite desarmar segurando o botão D do teclado numérico ou o botão vermelho fisico
     teclado.getKeys();
-    bool segurandoD = false;
     for (int i = 0; i < LIST_MAX; i++) {
       if (teclado.key[i].kchar == 'D' && (teclado.key[i].kstate == HOLD || teclado.key[i].kstate == PRESSED)) {
-        segurandoD = true;
-        break;
+        mantendoAcao = true; break;
       }
     }
-    if (segurandoD || digitalRead(BTN_VERMELHO) == LOW) {
-      mantendoAcao = true;
-    }
-  } 
-  else if (modoArmarAtual == BOTAO) {
-    if (digitalRead(BTN_VERMELHO) == LOW) {
-      mantendoAcao = true;
-    }
+    if (digitalRead(BTN_VERMELHO) == LOW) mantendoAcao = true;
   } 
   else if (modoArmarAtual == CARTAO) {
+    rfid.PCD_AntennaOff(); delay(5); rfid.PCD_AntennaOn();
+    
     if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
       int indice = verificarCartao(rfid.uid.uidByte, rfid.uid.size);
-      if (indice != -1 && cartoes[indice].nome == "Vermelho") {
-        mantendoAcao = true;
+      if (indice != -1 && cartoes[indice].nome == "Tag") {
+        ultimoMomentoCartaoDesarme = millis();
       }
-      rfid.PICC_HaltA();
-      rfid.PCD_StopCrypto1();
+      rfid.PICC_HaltA(); rfid.PCD_StopCrypto1();
     }
+    
+    if (millis() - ultimoMomentoCartaoDesarme < 400) mantendoAcao = true;
   }
 
-  if (!mantendoAcao && modoArmarAtual != CARTAO) {
+  // Se o jogador soltou a Tag/Botão antes de acabar, volta a contar o tempo da bomba
+  if (!mantendoAcao) {
+    lcd.clear();
+    lcd.setCursor(3,0);
+    lcd.print(F("CANCELADO!"));
+    delay(1000); 
+    rfid.PCD_Init(); 
     mudarTela(ARMADA);
     return;
   }
 
   if (millis() - ultimoFrameAnimacao >= 500) {
     ultimoFrameAnimacao = millis();
-
     lcd.setCursor(progressoAnimacao, 1);
     lcd.write(byte(0));
     progressoAnimacao++;
 
     if (progressoAnimacao >= 17) {
+      rfid.PCD_Init(); 
       mudarTela(FINAL_DEFESA);
     }
   }
@@ -1558,7 +1532,7 @@ void telaFinalSabotagem(int key){
   }
 
   char tecla = teclado.getKey();
-  if(tecla){
+  if(tecla || digitalRead(BTN_3) == LOW){
     lcd.clear();
     lcd.print(F("REINICIANDO..."));
     delay(1500);
@@ -1591,18 +1565,13 @@ void telaJogandoDominacao(){
   char tecla = teclado.getKey();
   switch(modoArmarAtual){
     case BOTAO:
-      if(apertouBotao(BTN_VERDE) || tecla == '1'){
+      if(digitalRead(BTN_VERDE) == LOW|| tecla == '1'){
         delay(33);
         mudarTela(DOMINANDO_1);
       }
-      if(apertouBotao(BTN_VERMELHO) || tecla == '2') {
+      if(digitalRead(BTN_VERMELHO) == LOW || tecla == '2') {
         delay(33);
         mudarTela(DOMINANDO_2);
-      }
-      if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
-        telaErro(JOGANDO_DOMINACAO);
-        rfid.PICC_HaltA();
-        rfid.PCD_StopCrypto1();
       }
       break;
 
@@ -1610,44 +1579,95 @@ void telaJogandoDominacao(){
       if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
         int indice = verificarCartao(rfid.uid.uidByte, rfid.uid.size);
         if (indice != -1) {
-          if(cartoes[indice].nome == "Verde"){
+          if(cartoes[indice].nome == "Cartao"){
             delay(33);
             mudarTela(DOMINANDO_1);
-          } else if(cartoes[indice].nome == "Vermelho"){
+          } else if(cartoes[indice].nome == "Tag"){
             delay(33);
             mudarTela(DOMINANDO_2);
           }
-        } else {
-          telaErro(JOGANDO_DOMINACAO);
         }
         rfid.PICC_HaltA();
         rfid.PCD_StopCrypto1();
-      }
-      if(apertouBotao(BTN_VERDE) || tecla == '1' || apertouBotao(BTN_VERMELHO) || tecla == '2'){
-        telaErro(JOGANDO_DOMINACAO);
       }
       break;
   }
 }
 
-void telaDominando(int key){
-  if(!atualizouTela){
+void telaDominando(int equipeCapturando) {
+  static unsigned long ultimoMomentoCartaoDom = 0;
+
+  if (!atualizouTela) {
     lcd.clear();
     lcd.setCursor(0,0);
-    EquipeAtiva = key;
-
     lcd.print(F("DOMINANDO A AREA"));
-    if((tempoLimite.toInt()/10) <= 80){
-      barraCarregamento(4000);
-    } else{
-      barraCarregamento(8000);
-    }
-    
+    lcd.createChar(0, bloco);
+
+    progressoAnimacao = 0;
+    ultimoFrameAnimacao = millis();
+    ultimoMomentoCartaoDom = millis();
     atualizouTela = true;
   }
 
-  lcd.clear();
-  mudarTela(DOMINADA);
+  int tempoTotal = ((tempoLimite.toInt() / 10) <= 80) ? 4000 : 8000;
+  int tempoPorFrame = tempoTotal / 16;
+  bool mantendoAcao = true;
+
+  if (modoArmarAtual == CARTAO) {
+    rfid.PCD_AntennaOff(); delay(5); rfid.PCD_AntennaOn();
+    
+    if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+      int indice = verificarCartao(rfid.uid.uidByte, rfid.uid.size);
+      if (indice != -1) {
+        // Equipe 1 = Cartao | Equipe 2 = Tag
+        if ((equipeCapturando == 1 && cartoes[indice].nome == "Cartao") || 
+            (equipeCapturando == 2 && cartoes[indice].nome == "Tag")) {
+          ultimoMomentoCartaoDom = millis();
+        }
+      }
+      rfid.PICC_HaltA(); rfid.PCD_StopCrypto1();
+    }
+    
+    if (millis() - ultimoMomentoCartaoDom > 400) mantendoAcao = false;
+
+  } else if (modoArmarAtual == BOTAO) {
+    // Equipe 1 segura botão verde, Equipe 2 segura botão vermelho
+    if (equipeCapturando == 1 && digitalRead(BTN_VERDE) == HIGH) mantendoAcao = false;
+    if (equipeCapturando == 2 && digitalRead(BTN_VERMELHO) == HIGH) mantendoAcao = false;
+  }
+
+  // Se soltar antes, cancela e devolve pro dono anterior
+  if (!mantendoAcao) {
+    lcd.clear();
+    lcd.setCursor(3,0);
+    lcd.print(F("CANCELADO!"));
+    delay(1000);
+    rfid.PCD_Init();
+
+    // Se ninguém tinha dominado ainda, volta pro aguardo. Se já tinha dono, volta a pontuar.
+    if (jaFoi == 0) mudarTela(JOGANDO_DOMINACAO);
+    else mudarTela(DOMINADA);
+    return;
+  }
+
+  if (millis() - ultimoFrameAnimacao >= tempoPorFrame) {
+    ultimoFrameAnimacao = millis();
+    lcd.setCursor(progressoAnimacao, 1);
+    lcd.write(byte(0));
+    progressoAnimacao++;
+
+    if (progressoAnimacao >= 16) {
+      EquipeAtiva = equipeCapturando; // Somente AGORA a equipe passa a ser dona!
+      
+      lcd.clear();
+      lcd.setCursor(2,0);
+      lcd.print(F("AREA DOMINADA!"));
+      delay(1000);
+      
+      rfid.PCD_Init();
+      mudarTela(DOMINADA);
+    }
+  }
 }
 
 void telaDominada(){
@@ -1723,17 +1743,12 @@ void telaDominada(){
       if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
         int indice = verificarCartao(rfid.uid.uidByte, rfid.uid.size);
         if (indice != -1) {
-          if(cartoes[indice].nome == "Verde" && EquipeAtiva != 1){
-            EquipeAtiva = 1;
-            delay(33);
-            mudarTela(DOMINADA);
-          } else if(cartoes[indice].nome == "Vermelho" && EquipeAtiva != 2){
-            EquipeAtiva = 2;
-            delay(33);
-            mudarTela(DOMINADA);
+          // Em vez de mudar de time na hora, envia para a tela de animação de cada time!
+          if(cartoes[indice].nome == "Cartao" && EquipeAtiva != 1){
+            mudarTela(DOMINANDO_1); 
+          } else if(cartoes[indice].nome == "Tag" && EquipeAtiva != 2){
+            mudarTela(DOMINANDO_2);
           }
-        } else {
-          telaErro(DOMINADA);
         }
         rfid.PICC_HaltA();
         rfid.PCD_StopCrypto1();
@@ -1741,13 +1756,11 @@ void telaDominada(){
       break;
 
     case BOTAO:
-      if((tecla == 'A' || tecla == '1' || apertouBotao(BTN_VERDE)) && EquipeAtiva != 1){
-        EquipeAtiva = 1;
-        mudarTela(DOMINADA);
+      if(digitalRead(BTN_VERDE) == LOW && EquipeAtiva != 1){
+        mudarTela(DOMINANDO_1);
       }
-      if((tecla == 'B' || tecla == '2' || apertouBotao(BTN_VERMELHO)) && EquipeAtiva != 2){
-        EquipeAtiva = 2;
-        mudarTela(DOMINADA);
+      if(digitalRead(BTN_VERMELHO) == LOW && EquipeAtiva != 2){
+        mudarTela(DOMINANDO_2);
       }
       break;
   }
@@ -1812,6 +1825,7 @@ void setup() {
   // Botões
   pinMode(BTN_VERDE, INPUT_PULLUP);
   pinMode(BTN_VERMELHO, INPUT_PULLUP);
+  pinMode(BTN_3, INPUT_PULLUP);
 
   teclado.setDebounceTime(50);
   
