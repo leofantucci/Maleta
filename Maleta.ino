@@ -1,4 +1,5 @@
-// VERSAO 2 - Otimizando funcoes e corrigindo bugs
+// VERSAO 3 - Troca do ScrollTexto pela navegação por meio do teclado
+// A - Cima / B - Baixo / C - Cancelar / # - Enter
 
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -39,24 +40,28 @@ enum Tela {
 enum Jogo {
   NOVO,
   ULTIMO,
+  NENHUM_0,
 };
 
 enum ModoJogo {
   SABOTAGEM,
   DOMINACAO,
-};
-
-enum Duracao {
-  CQB, // 10 min
-  PADRAO, // 15 min
-  CAMPO_ABERTO,
-  PERSONALIZADA, // Tempo definido pelo usuario
+  NENHUM_1,
 };
 
 enum ModoArmar {
   BOTAO,
   CARTAO,
   SENHA,
+  NENHUM_2,
+};
+
+enum Duracao {
+  CQB, // 10 min
+  PADRAO, // 15 min
+  MILSIM,
+  PERSONALIZADA, // Tempo definido pelo usuario
+  NENHUM_3,
 };
 
 struct Cartao {
@@ -84,8 +89,8 @@ struct DadosJogo {
 
 ScrollLCD menu = {0, 0, " (1) Sabotagem - (2) Dominacao"};
 ScrollLCD inicio = {0, 0, " (1) Novo Jogo - (2) Ultimo Jogo"};
-ScrollLCD duracaoSabotagem = {0, 0, " (1) CQB: 50s. - (2) Padrao: 1m30s. - (3) Campo Aberto: 4m20s. - (4) Personalizada"};
-ScrollLCD duracaoDominacao = {0, 0, " (1) CQB: 10min. - (2) Padrao: 30min. - (3) Campo Aberto: 60min. - (4) Personalizada"};
+ScrollLCD duracaoSabotagem = {0, 0, " (1) CQB: 50s. - (2) Padrao: 1m30s. - (3) Milsim: 4m20s. - (4) Personalizada"};
+ScrollLCD duracaoDominacao = {0, 0, " (1) CQB: 10min. - (2) Padrao: 30min. - (3) Milsim: 60min. - (4) Personalizada"};
 ScrollLCD menuSabotagem = {0, 0, " (1) Botao - (2) Cartao - (3) Senha"};
 ScrollLCD menuDominacao = {0, 0, " (1) Botao - (2) Cartao"};
 ScrollLCD tempoSabotagem = {0, 0, " Defina o tempo de explosao apos armar (seg.)"};
@@ -145,6 +150,28 @@ byte bloco[8] = {
 byte setaEsquerda[8] = {
   B11100, B11110, B11111, B11111,
   B11111, B11110, B11100, B00000
+};
+
+byte trianguloCima[8] = {
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00100,
+  B01110,
+  B11111,
+  B00000 
+};
+
+byte trianguloBaixo[8] = {
+  B00000,
+  B11111,
+  B01110,
+  B00100,
+  B00000,
+  B00000,
+  B00000,
+  B00000 
 };
 
 Tela telaAtual = INICIO;
@@ -243,9 +270,9 @@ bool carregarUltimoJogo() {
 String nomeModoJogoAtual(){
   switch(modoJogoAtual){
     case SABOTAGEM:
-      return "Sabotagem";
+      return "Sabot.";
     case DOMINACAO:
-      return "Dominacao";
+      return "Domin.";
   }
 }
 String nomeModoArmarAtual(){
@@ -264,8 +291,8 @@ String nomeDuracaoAtual(){
       return "CQB";
     case PADRAO:
       return "Padrao";
-    case CAMPO_ABERTO:
-      return "Campo Aberto";
+    case MILSIM:
+      return "Milsim";
     case PERSONALIZADA:
       return "Person.";
   }
@@ -481,165 +508,312 @@ int verificarCartao(byte *uidLido, byte tamanho) {
 /* TELAS                     */
 /* ========================= */
 
+int selecaoAtual;
+int ultimaSelecao = -99;
+int limiteMax;
+
+void startSelecao(char tecla, int numMax){
+  if (ultimaSelecao != selecaoAtual) {
+    lcd.clear();
+    ultimaSelecao = selecaoAtual;
+  }
+  if (tecla == 'B' && selecaoAtual > 0) selecaoAtual--;
+  if (tecla == 'A' && selecaoAtual < numMax) selecaoAtual++;
+}
+
+void printarOpcaoBaixo(){
+  lcd.setCursor(15, 1);
+  lcd.write(byte(2));
+}
+void printarOpcaoCima(){
+  lcd.setCursor(15, 0);
+  lcd.write(byte(1));
+}
+void printarAmbasOpcoes(){
+  printarOpcaoBaixo();
+  printarOpcaoCima();
+}
+
+void printarConfirmacao(){
+  lcd.setCursor(13,1);
+  lcd.print(F("#"));
+}
+
+void resetarAtual(){
+  mudarModoJogo(NENHUM_1);
+  mudarModoArmar(NENHUM_2);
+  mudarDuracao(NENHUM_3);
+}
+
 void telaInicio() {
   ultimaTela = INICIO;
   if (!atualizouTela) {
+    resetarAtual();
+    selecaoAtual = 1;
     lcd.clear();
-    lcd.setCursor(3, 0);
-    lcd.print(F("Bem-Vindo!"));
     atualizouTela = true;
   }
 
-  scrollTexto(inicio, 1, 300);
+  if (selecaoAtual == 1) {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Bem-Vindo!"));
+    lcd.setCursor(0, 1);
+    lcd.print(F("Novo Jogo"));
+    printarOpcaoBaixo();
+    printarConfirmacao();
+  } else if (selecaoAtual == 0) {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Bem-Vindo!"));
+    lcd.setCursor(0, 1);
+    lcd.print(F("Ultimo Jogo"));
+    printarOpcaoCima();
+    printarConfirmacao();
+  }
   
   char tecla = teclado.getKey();
-  if (tecla == '1') {
-    mudarTela(MODO_JOGO);
-  }
-  if (tecla == '2') {
+
+  startSelecao(tecla, 1);
+  
+  if(tecla == '#'){
     delay(33);
-    
-    if (carregarUltimoJogo()) {
-      // Deu certo, tem jogo salvo!
-      mudarTela(CONFIRMAR); 
-    } else {
-      // Deu errado, EEPROM está vazia!
-      lcd.clear();
-      lcd.setCursor(2, 0);
-      lcd.print(F("NENHUM JOGO"));
-      lcd.setCursor(2, 1);
-      lcd.print(F("SALVO AINDA!"));
-      delay(2000); // Mostra o erro por 2 segundos
-      atualizouTela = false; // Força recarregar a tela de Bem-Vindo
+    switch(selecaoAtual){
+      case 1:
+        mudarTela(MODO_JOGO);
+        break;
+      case 0:
+        if (carregarUltimoJogo()) {
+          atualizarTextoConfirmacao();
+          mudarTela(CONFIRMAR);
+        } else {
+          lcd.clear();
+          lcd.setCursor(2, 0);
+          lcd.print(F("NENHUM JOGO"));
+          lcd.setCursor(2, 1);
+          lcd.print(F("SALVO AINDA!"));
+          delay(2000);
+          mudarTela(INICIO);
+        }
+        break;
     }
   }
 }
 
-
 void telaModoJogo() {
   ultimaTela = INICIO;
   if (!atualizouTela) {
+    mudarModoJogo(NENHUM_1);
+    selecaoAtual = 2;
     lcd.clear();
-    lcd.setCursor(1, 0);
-    lcd.print(F("Escolha o modo"));
     atualizouTela = true;
   }
-
-  scrollTexto(menu, 1, 300);
+  
+  if (selecaoAtual == 2) {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Escolha o modo:"));
+    lcd.setCursor(0, 1);
+    lcd.print(F("Sabotagem"));
+    printarOpcaoBaixo();
+    printarConfirmacao();
+  } else if (selecaoAtual == 1) {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Escolha o modo:"));
+    lcd.setCursor(0, 1);
+    lcd.print(F("Dominacao"));
+    printarAmbasOpcoes();
+    printarConfirmacao();
+  } else {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Escolha o modo:"));
+    lcd.setCursor(0, 1);
+    lcd.print(F("Voltar"));
+    printarOpcaoCima();
+    printarConfirmacao();
+  }
 
   char tecla = teclado.getKey();
-  if(tecla == 'B'){
-    delay(33);
+  
+  startSelecao(tecla, 2);
+
+  if(tecla == 'C'){
     mudarTela(ultimaTela);
   }
-  if (tecla == '1') {
+
+  if(tecla == '#'){
     delay(33);
-    mudarModoJogo(SABOTAGEM);
-    mudarTela(MODO_ARMAR);
-  }
-  if (tecla == '2') {
-    delay(33);
-    mudarModoJogo(DOMINACAO);
-    mudarTela(MODO_ARMAR);
+    switch(selecaoAtual){
+      case 2:
+        mudarModoJogo(SABOTAGEM);
+        mudarTela(MODO_ARMAR);
+        break;
+      case 1:
+        mudarModoJogo(DOMINACAO);
+        mudarTela(MODO_ARMAR);
+        break;
+      case 0:
+        mudarTela(ultimaTela);
+        break;
+    }
   }
 }
 
 void telaModoArmar() {
   ultimaTela = MODO_JOGO;
   if (!atualizouTela) {
+    mudarModoArmar(NENHUM_2);
     lcd.clear();
-    lcd.setCursor(2, 0);
-    lcd.print(F("Modo de armar"));
+    selecaoAtual = (modoJogoAtual == SABOTAGEM) ? 3 : 2;
     atualizouTela = true;
   }
   
   char tecla = teclado.getKey();
-  if(tecla == 'B'){
+
+  startSelecao(tecla, (modoJogoAtual == SABOTAGEM) ? 3 : 2);
+
+  if (selecaoAtual == 3) {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Modo de armar:"));
+    lcd.setCursor(0, 1);
+    lcd.print(F("Senha"));
+    printarOpcaoBaixo();
+    printarConfirmacao();
+  } 
+  else if (selecaoAtual == 2) {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Modo de armar:"));
+    if (modoJogoAtual == SABOTAGEM) {
+      printarOpcaoCima();
+    }
+    lcd.setCursor(0, 1);
+    lcd.print(F("Botao"));
+    printarOpcaoBaixo();
+    printarConfirmacao();
+  }
+  else if (selecaoAtual == 1) {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Modo de armar:"));
+    lcd.setCursor(0, 1);
+    lcd.print(F("Cartao"));
+    printarAmbasOpcoes();
+    printarConfirmacao();
+  } else {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Modo de armar:"));
+    lcd.setCursor(0, 1);
+    lcd.print(F("Voltar"));
+    printarOpcaoCima();
+    printarConfirmacao();
+  }
+
+  if(tecla == 'C'){
     delay(33);
     mudarTela(ultimaTela);
   }
 
-  switch(modoJogoAtual){
-    case SABOTAGEM:
-      scrollTexto(menuSabotagem, 1, 300);
-
-      if (tecla == '1') {
-        delay(33);
-        mudarModoArmar(BOTAO);
-        mudarTela(DURACAO);
-      }
-      if (tecla == '2') {
-        delay(33);
-        mudarModoArmar(CARTAO);
-        mudarTela(DURACAO);
-      }
-      if (tecla == '3') {
+  if(tecla == '#'){
+    switch(selecaoAtual){
+      case 3:
         delay(33);
         mudarModoArmar(SENHA);      
         mudarTela(MENU_SENHA);
-      }
-      break;
-      
-    case DOMINACAO:
-      scrollTexto(menuDominacao, 1, 300);
-    
-      if (tecla == '1') {
+        break;
+      case 2:
         delay(33);
         mudarModoArmar(BOTAO);
         mudarTela(DURACAO);
-      }
-      if (tecla == '2') {
+        break;
+      case 1:
         delay(33);
         mudarModoArmar(CARTAO);
         mudarTela(DURACAO);
-      }
-      break;
+        break;
+      case 0:
+        delay(33);
+        mudarTela(ultimaTela);
+        break;
+    }
   }
 }
 
 void telaDuracao(){
   ultimaTela = MODO_ARMAR;
   if (!atualizouTela) {
+    mudarDuracao(NENHUM_3);
+    selecaoAtual = 4;
     lcd.clear();
-    lcd.setCursor(0, 0);
-    if(modoJogoAtual == SABOTAGEM){
-      lcd.print(F("Tempo apos armar"));
-    } else if(modoJogoAtual == DOMINACAO){
-      lcd.print(F("Limite de tempo"));
-    }
     atualizouTela = true;
   }  
 
-  if(modoJogoAtual == SABOTAGEM){
-    scrollTexto(duracaoSabotagem, 1, 300);
-  }
-  if(modoJogoAtual == DOMINACAO){
-    scrollTexto(duracaoDominacao, 1, 300);
-  }
-  
   char tecla = teclado.getKey();
 
-  if((tecla >= '1' && tecla <= '4') || tecla == 'B'){
-    switch(tecla){
-      case 'B':
-        mudarTela(ultimaTela);
-        break;
-      case '1':
+  startSelecao(tecla, 4);
+
+  if (selecaoAtual == 4) {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Duracao:"));
+    lcd.setCursor(0, 1);
+    if (modoJogoAtual == SABOTAGEM) lcd.print(F("CQB: 50s."));
+    else lcd.print(F("CQB: 10m."));
+    printarOpcaoBaixo();
+    printarConfirmacao();
+  } 
+  else if (selecaoAtual == 3) {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Duracao:"));
+    lcd.setCursor(0, 1);
+    if (modoJogoAtual == SABOTAGEM) lcd.print(F("Padrao: 90s."));
+    else lcd.print(F("Padrao: 30m."));
+    printarAmbasOpcoes();
+    printarConfirmacao();
+  } 
+  else if (selecaoAtual == 2) {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Duracao:"));
+    lcd.setCursor(0, 1);
+    if (modoJogoAtual == SABOTAGEM) lcd.print(F("Milsim: 260s."));
+    else lcd.print(F("Milsim: 60m."));
+    printarAmbasOpcoes();
+    printarConfirmacao();
+  } 
+  else if (selecaoAtual == 1) {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Duracao:"));
+    lcd.setCursor(0, 1);
+    lcd.print(F("Personaliz."));
+    printarAmbasOpcoes();
+    printarConfirmacao();
+  } 
+  else if (selecaoAtual == 0) {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Duracao:"));
+    lcd.setCursor(0, 1);
+    lcd.print(F("Voltar"));
+    printarOpcaoCima();
+    printarConfirmacao();
+  }
+
+  if(tecla == 'C'){
+    delay(33);
+    mudarTela(ultimaTela);
+  }
+
+  if(tecla == '#'){
+    switch(selecaoAtual){
+      case 4:
         mudarDuracao(CQB);
         if(modoJogoAtual == SABOTAGEM) {tempoExplosao = "50"; mudarTela(CONFIRMAR);}
         if(modoJogoAtual == DOMINACAO) { tempoLimite = "600"; maxPts = 300; mudarTela(MENU_CONFIRMAR_PONTOS);}
         break;
-      case '2':
+      case 3:
         mudarDuracao(PADRAO);
         if(modoJogoAtual == SABOTAGEM) {tempoExplosao = "90"; mudarTela(CONFIRMAR);}
         if(modoJogoAtual == DOMINACAO) { tempoLimite = "1800"; maxPts = 900; mudarTela(MENU_CONFIRMAR_PONTOS);}
         break;
-      case '3':
-        mudarDuracao(CAMPO_ABERTO);
+      case 2:
+        mudarDuracao(MILSIM);
         if(modoJogoAtual == SABOTAGEM) {tempoExplosao = "260"; mudarTela(CONFIRMAR);}
         if(modoJogoAtual == DOMINACAO) { tempoLimite = "3600"; maxPts = 1800; mudarTela(MENU_CONFIRMAR_PONTOS);}
         break;
-      case '4':
+      case 1:
         mudarDuracao(PERSONALIZADA);
         if(modoJogoAtual == SABOTAGEM){
           mudarTela(MENU_TEMPO_EXPLOSAO);
@@ -647,6 +821,10 @@ void telaDuracao(){
         if(modoJogoAtual == DOMINACAO){
           mudarTela(MENU_TEMPO_LIMITE);
         }
+        break;
+      case 0:
+        delay(33);
+        mudarTela(ultimaTela);
         break;
     }
   }
@@ -657,8 +835,8 @@ void telaMenuSenha() {
   if (!atualizouTela) {
     senha_inserida = "";
     lcd.clear();
-    lcd.setCursor(1, 0);
-    lcd.print(F("Defina a senha"));
+    lcd.setCursor(0, 0);
+    lcd.print(F("Defina a senha:"));
   
     atualizouTela = true;
   }
@@ -671,31 +849,32 @@ void telaMenuSenha() {
     lcd.setCursor(0,1);
     lcd.print(senha_inserida);
   }
-  if(tecla == 'D'){
-    senha_inserida = "";
-    lcd.setCursor(0,1);
-    lcd.print(F("                "));
+  if(tecla == 'C'){
+    if(senha_inserida != ""){
+      senha_inserida = "";
+      lcd.setCursor(0,1);
+      lcd.print(F("                "));
+    } else{
+      delay(33);
+      mudarTela(ultimaTela);
+    }
   }
   if(tecla == '#'){
     delay(33);
     salvarSenha();
-  }
-  if(tecla == 'B'){
-    delay(33);
-    mudarTela(ultimaTela);
   }
 }
 
 void telaVisualizarSenha(){
   if (!atualizouTela) {
     lcd.clear();
-    lcd.setCursor(2,0);
-    lcd.print(F("Senha  salva"));
+    lcd.setCursor(0,0);
+    lcd.print(F("Senha salva:"));
     lcd.setCursor(0,1);
     lcd.print(senha);
     atualizouTela = true;
   }
-  delay(1000);
+  delay(2500);
   mudarTela(DURACAO);
 }
 
@@ -703,28 +882,47 @@ void telaMenuConfirmarPontos(){
   ultimaTela = MENU_TEMPO_LIMITE;
   if (!atualizouTela) {
     lcd.clear();
-    lcd.setCursor(0,1);
-    lcd.print(F("(1)Sim - (2)Nao"));
+    selecaoAtual = 1;
     atualizouTela = true;
   }
-    
-  lcd.setCursor(0, 0);
-  scrollTexto(menuConfirmarPontos, 0, 300);
-  
+
+  if (selecaoAtual == 1) {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Pers. max. pts."));
+    lcd.setCursor(0, 1);
+    lcd.print(F("Sim"));
+    lcd.setCursor(15, 1);
+    lcd.write(byte(2));
+  } else {
+    lcd.setCursor(0, 0);
+    lcd.print(F("Pers. max. pts."));
+    lcd.setCursor(15, 0);
+    lcd.write(byte(1));
+    lcd.setCursor(0, 1);
+    lcd.print(F("Nao"));
+  }
+
   char tecla = teclado.getKey();
-  
-  if(tecla == '1'){
-    delay(33);
-    mudarTela(MENU_PONTOS);
-  }
-  if(tecla == '2'){
-    delay(33);
-    maxPts = (tempoLimite.toInt())/2;
-    mudarTela(VISUALIZAR_PONTOS);
-  }
-  if(tecla == 'B'){
+
+  startSelecao(tecla, 1);
+
+  if(tecla == 'C'){
     delay(33);
     mudarTela(ultimaTela);
+  }
+
+  if(tecla == '#'){
+    switch(selecaoAtual){
+      case 1:
+        delay(33);
+        mudarTela(MENU_PONTOS);
+        break;
+      case 0:
+        delay(33);
+        maxPts = ceil((tempoLimite.toInt())/2.0);
+        mudarTela(VISUALIZAR_PONTOS);
+        break;
+    }
   }
 }
 
@@ -733,8 +931,8 @@ void telaMenuPontos() {
   if (!atualizouTela) {
     maxPts_inserido = "";
     lcd.clear();
-    lcd.setCursor(1,0);
-    lcd.print(F("Def. max. pts."));
+    lcd.setCursor(0,0);
+    lcd.print(F("Def. max. pts.:"));
     atualizouTela = true;
   }
   
@@ -747,31 +945,34 @@ void telaMenuPontos() {
     lcd.setCursor(0,1);
     lcd.print(maxPts_inserido);
   }
-  if(tecla == 'D'){
-    maxPts_inserido = "";
-    lcd.setCursor(0,1);
-    lcd.print(F("                "));
+
+  if(tecla == 'C'){
+    if(maxPts_inserido != ""){
+      maxPts_inserido = "";
+      lcd.setCursor(0,1);
+      lcd.print(F("                "));
+    } else {
+      delay(33);
+      mudarTela(ultimaTela);
+    }
   }
+
   if(tecla == '#'){
     delay(33);
     salvarPontos();
-  }
-  if(tecla == 'B'){
-    delay(33);
-    mudarTela(ultimaTela);
   }
 }
 
 void telaVisualizarPontos(){
   if (!atualizouTela) {
     lcd.clear();
-    lcd.setCursor(1,0);
-    lcd.print(F("Max. de pontos"));
+    lcd.setCursor(0,0);
+    lcd.print(F("Max. de pontos:"));
     lcd.setCursor(0,1);
     lcd.print(maxPts);
     atualizouTela = true;
   }
-  delay(1000);
+  delay(2000);
   mudarTela(CONFIRMAR);
 }
 
@@ -781,11 +982,12 @@ void telaTempoExplosao() {
     tempoExplosao_inserido = "";
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print(F("Tempo apos armar"));
+    lcd.print(F("Def. tempo exp.:"));
     atualizouTela = true;
   }
 
   char tecla = teclado.getKey();
+
   if(tecla >= '0' && tecla <= '9'){
     tempoExplosao_inserido += tecla;
     lcd.setCursor(0,1);
@@ -793,33 +995,35 @@ void telaTempoExplosao() {
     lcd.setCursor(0,1);
     lcd.print(tempoExplosao_inserido);
   }
-  if(tecla == 'D'){
-    delay(33);
-    tempoExplosao_inserido = "";
-    lcd.setCursor(0,1);
-    lcd.print(F("                "));
+
+  if(tecla == 'C'){
+    if(tempoExplosao_inserido != ""){
+      tempoExplosao_inserido = "";
+      lcd.setCursor(0,1);
+      lcd.print(F("                "));
+    } else {
+      delay(33);
+      mudarTela(ultimaTela);
+    }
   }
+
   if(tecla == '#'){
     delay(33);
     salvarTempoExplosao();
-  }
-  if(tecla == 'B'){
-    delay(33);
-    mudarTela(ultimaTela);
   }
 }
 
 void telaVisualizarTempoExplosao(){
   if (!atualizouTela) {
     lcd.clear();
-    lcd.setCursor(1,0);
-    lcd.print(F("Tempo explosao"));
+    lcd.setCursor(0,0);
+    lcd.print(F("Tempo explosao:"));
     lcd.setCursor(0,1);
     lcd.print(tempoExplosao);
     lcd.print(F("seg."));
     atualizouTela = true;
   }
-  delay(1000);
+  delay(2500);
   mudarTela(CONFIRMAR);
 }
 
@@ -828,12 +1032,13 @@ void telaTempoLimite() {
   if (!atualizouTela) {
     tempoLimite_inserido = "";
     lcd.clear();
-    lcd.setCursor(2, 0);
-    lcd.print(F("Tempo limite"));
+    lcd.setCursor(0, 0);
+    lcd.print(F("Def. Tempo lim.:"));
     atualizouTela = true;
   }
 
   char tecla = teclado.getKey();
+
   if(tecla >= '0' && tecla <= '9'){
     tempoLimite_inserido += tecla;
     lcd.setCursor(0,1);
@@ -841,58 +1046,232 @@ void telaTempoLimite() {
     lcd.setCursor(0,1);
     lcd.print(tempoLimite_inserido);
   }
-  if(tecla == 'D'){
+
+  if(tecla == 'C'){
     delay(33);
-    tempoLimite_inserido = "";
-    lcd.setCursor(0,1);
-    lcd.print(F("                "));
+    if(tempoLimite_inserido != ""){
+      tempoLimite_inserido = "";
+      lcd.setCursor(0,1);
+      lcd.print(F("                "));
+    } else {
+      delay(33);
+      mudarTela(ultimaTela);
+    }
   }
+
   if(tecla == '#'){
     delay(33);
     salvarTempoLimite();
-  }
-  if(tecla == 'B'){
-    delay(33);
-    mudarTela(ultimaTela);
   }
 }
 
 void telaVisualizarTempoLimite(){
   if (!atualizouTela) {
     lcd.clear();
-    lcd.setCursor(2,0);
-    lcd.print(F("Tempo limite"));
+    lcd.setCursor(0,0);
+    lcd.print(F("Tempo limite:"));
     lcd.setCursor(0,1);
     lcd.print(tempoLimite);
     lcd.print(F("seg."));
     atualizouTela = true;
   }
-  delay(1000);
+  delay(2500);
   mudarTela(MENU_CONFIRMAR_PONTOS);
 }
 
 void telaConfirmar() {
   if (!atualizouTela) {
     lcd.clear();
-    atualizarTextoConfirmacao(); 
-    
-    // ADICIONE ISTO PARA MOSTRAR OS BOTÕES NA LINHA DE BAIXO
-    lcd.setCursor(0, 1);
-    lcd.print(F("1-Iniciar B-Sair"));
-    
+    if(modoJogoAtual == SABOTAGEM){
+      if(modoArmarAtual == SENHA){
+        selecaoAtual = 5;
+        limiteMax = 5;
+      } else {
+        selecaoAtual = 4;
+        limiteMax = 4;
+      }
+    } else{
+      selecaoAtual = 5;
+      limiteMax = 5;
+    }
     atualizouTela = true;
   }
   
-  scrollTexto(menuConfirmar, 0, 300); 
-  
-  char tecla = teclado.getKey();
-  if(tecla == '1') {
-    delay(33);
-    salvarUltimoJogo();
-    if(modoJogoAtual == SABOTAGEM) mudarTela(JOGANDO_SABOTAGEM);
-    if(modoJogoAtual == DOMINACAO) mudarTela(JOGANDO_DOMINACAO);
+  switch(modoJogoAtual){
+    case DOMINACAO:
+      if(selecaoAtual == 5){
+        lcd.setCursor(0,0);
+        lcd.print(F("Confirma?"));
+        lcd.setCursor(0,1);
+        lcd.print(F("Jogo: "));
+        lcd.print(nomeModoJogoAtual());
+        printarOpcaoBaixo();
+      }
+      if(selecaoAtual == 4){
+        lcd.setCursor(0,0);
+        lcd.print(F("Confirma?"));
+        lcd.setCursor(0,1);
+        lcd.print(F("Armar: "));
+        lcd.print(nomeModoArmarAtual());
+        printarAmbasOpcoes();
+      }
+      if(selecaoAtual == 3){
+        lcd.setCursor(0,0);
+        lcd.print(F("Confirma?"));
+        lcd.setCursor(0,1);
+        lcd.print(F("Tempo: "));
+        lcd.print(tempoLimite);
+        lcd.print(F("s."));
+        printarAmbasOpcoes();
+      }
+      if(selecaoAtual == 2){
+        lcd.setCursor(0,0);
+        lcd.print(F("Confirma?"));
+        lcd.setCursor(0,1);
+        lcd.print(F("Lim.: "));
+        lcd.print(maxPts);
+        lcd.print(F("pts."));
+        printarAmbasOpcoes();
+      }
+      if(selecaoAtual == 1){
+        lcd.setCursor(0,0);
+        lcd.print(F("Confirma?"));
+        lcd.setCursor(0,1);
+        lcd.print(F("Sim"));
+        printarAmbasOpcoes();
+        printarConfirmacao();
+      }
+      if(selecaoAtual == 0){
+        lcd.setCursor(0,0);
+        lcd.print(F("Confirma?"));
+        lcd.setCursor(0,1);
+        lcd.print(F("Nao"));
+        printarOpcaoCima();
+        printarConfirmacao();
+      }
+      break;
+
+    case SABOTAGEM:
+      if(modoArmarAtual == SENHA){
+        if(selecaoAtual == 5){
+        lcd.setCursor(0,0);
+        lcd.print(F("Confirma?"));
+        lcd.setCursor(0,1);
+        lcd.print(F("Jogo: "));
+        lcd.print(nomeModoJogoAtual());
+        printarOpcaoBaixo();
+      }
+      if(selecaoAtual == 4){
+        lcd.setCursor(0,0);
+        lcd.print(F("Confirma?"));
+        lcd.setCursor(0,1);
+        lcd.print(F("Armar: "));
+        lcd.print(nomeModoArmarAtual());
+        printarAmbasOpcoes();
+      }
+      if(selecaoAtual == 3){
+        lcd.setCursor(0,0);
+        lcd.print(F("Confirma?"));
+        lcd.setCursor(0,1);
+        lcd.print(F("Senha: "));
+        lcd.print(senha);
+        printarAmbasOpcoes();
+      }
+      if(selecaoAtual == 2){
+        lcd.setCursor(0,0);
+        lcd.print(F("Confirma?"));
+        lcd.setCursor(0,1);
+        lcd.print(F("Lim.: "));
+        lcd.print(tempoExplosao);
+        lcd.print(F("s."));
+        printarAmbasOpcoes();
+      }
+      if(selecaoAtual == 1){
+        lcd.setCursor(0,0);
+        lcd.print(F("Confirma?"));
+        lcd.setCursor(0,1);
+        lcd.print(F("Iniciar"));
+        printarAmbasOpcoes();
+        printarConfirmacao();
+        
+      }
+      if(selecaoAtual == 0){
+        lcd.setCursor(0,0);
+        lcd.print(F("Confirma?"));
+        lcd.setCursor(0,1);
+        lcd.print(F("Voltar"));
+        printarOpcaoCima();
+        printarConfirmacao();
+      }
+      } else{
+        if(selecaoAtual == 4){
+          lcd.setCursor(0,0);
+          lcd.print(F("Confirma?"));
+          lcd.setCursor(0,1);
+          lcd.print(F("Jogo: "));
+          lcd.print(nomeModoJogoAtual());
+          printarOpcaoBaixo();
+        }
+        if(selecaoAtual == 3){
+          lcd.setCursor(0,0);
+          lcd.print(F("Confirma?"));
+          lcd.setCursor(0,1);
+          lcd.print(F("Armar: "));
+          lcd.print(nomeModoArmarAtual());
+          printarAmbasOpcoes();
+        }
+        if(selecaoAtual == 2){
+          lcd.setCursor(0,0);
+          lcd.print(F("Confirma?"));
+          lcd.setCursor(0,1);
+          lcd.print(F("Tempo: "));
+          lcd.print(tempoExplosao);
+          lcd.print(F("s."));
+          printarAmbasOpcoes();
+        }
+        if(selecaoAtual == 1){
+          lcd.setCursor(0,0);
+          lcd.print(F("Confirma?"));
+          lcd.setCursor(0,1);
+          lcd.print(F("Iniciar"));
+          printarAmbasOpcoes();
+          printarConfirmacao();
+        }
+        if(selecaoAtual == 0){
+          lcd.setCursor(0,0);
+          lcd.print(F("Confirma?"));
+          lcd.setCursor(0,1);
+          lcd.print(F("Voltar"));
+          printarOpcaoCima();
+          printarConfirmacao();
+        }
+      }
+      break;
   }
-    if(tecla == 'B') {delay(33); mudarTela(INICIO);}
+
+  char tecla = teclado.getKey();
+  
+  startSelecao(tecla, limiteMax);
+  
+  if(tecla == 'C'){
+    delay(33);
+    mudarTela(INICIO);
+  }
+
+  if(tecla == '#'){
+    delay(33);
+    if(selecaoAtual > 1){
+      selecaoAtual -= 1;
+    } 
+    else if(selecaoAtual == 1){
+      salvarUltimoJogo();
+      if(modoJogoAtual == SABOTAGEM) mudarTela(JOGANDO_SABOTAGEM);
+      if(modoJogoAtual == DOMINACAO) mudarTela(JOGANDO_DOMINACAO);
+    } 
+    else if(selecaoAtual == 0){
+      mudarTela(INICIO);
+    }
+  }
 }
 
 /* ========================= */
@@ -1397,7 +1776,8 @@ void telaFinalDominacao(){
       lcd.print(F("VENCE A EQUIPE "));
       lcd.print(equipeVencedora);
     }
-    lcd.setCursor(0,1);
+    int toma = (("COM ") + String(ptsVencedor) + (" PTS.")).length();
+    lcd.setCursor((16-toma)/2,1);
     lcd.print(F("COM "));
     lcd.print(ptsVencedor);
     lcd.print(F(" PTS."));
@@ -1417,7 +1797,9 @@ void telaFinalDominacao(){
 
 void setup() {
   Serial.begin(115200);
-
+  
+  resetarAtual();
+  
   // LCD
   lcd.init();
   lcd.backlight();
@@ -1432,6 +1814,9 @@ void setup() {
   pinMode(BTN_VERMELHO, INPUT_PULLUP);
 
   teclado.setDebounceTime(50);
+  
+  lcd.createChar(1, trianguloCima);
+  lcd.createChar(2, trianguloBaixo);
   
   Serial.println(F("Sistema iniciado"));
 };
